@@ -455,190 +455,305 @@
         <div id="wrangling" class="tab-content">
             <h2>🔧 Data Wrangling & Cleaning</h2>
             
-            <!-- Data Quality Section -->
-            <div class="wrangling-section">
-                <h3>🔍 Data Quality Checks</h3>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="wranglingSheet">Select Sheet:</label>
-                        <select id="wranglingSheet" onchange="updateWranglingSheet()"></select>
+            <!-- Wrangling Navigation -->
+            <div class="wrangling-nav">
+                <div class="wrangling-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="wranglingProgress"></div>
                     </div>
-                    <div class="control-group">
-                        <button class="btn" onclick="runDataQualityCheck()">Run Quality Check</button>
-                        <button class="btn btn-secondary" onclick="detectDataTypes()">Detect Data Types</button>
+                    <div class="progress-text">
+                        <span id="currentStep">1</span> of <span id="totalSteps">7</span> - <span id="stepTitle">Sheet Selection</span>
                     </div>
                 </div>
-                <div id="dataQualityResults"></div>
-            </div>
-
-            <!-- Column Operations Section -->
-            <div class="wrangling-section">
-                <h3>📋 Column Operations</h3>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="renameColumn">Rename Column:</label>
-                        <select id="renameColumn"></select>
-                        <input type="text" id="newColumnName" placeholder="New column name">
-                        <button class="btn btn-secondary" onclick="renameColumn()">Rename</button>
-                    </div>
-                    <div class="control-group">
-                        <label for="sortColumn">Sort by Column:</label>
-                        <select id="sortColumn"></select>
-                        <select id="sortOrder">
-                            <option value="asc">Ascending</option>
-                            <option value="desc">Descending</option>
-                        </select>
-                        <button class="btn btn-secondary" onclick="sortByColumn()">Sort</button>
-                    </div>
-                </div>
-                
-                <div class="controls">
-                    <div class="control-group">
-                        <button class="btn btn-secondary" onclick="removeUnnamedColumns()">Remove Unnamed Columns</button>
-                        <button class="btn btn-secondary" onclick="removeSpecialCharacters()">Remove Special Characters (.?/)</button>
-                        <button class="btn btn-secondary" onclick="trimSpaces()">Trim Leading/Trailing Spaces</button>
-                        <button class="btn btn-secondary" onclick="removeAccents()">Remove Accents</button>
-                    </div>
+                <div class="nav-buttons">
+                    <button class="btn btn-secondary" id="prevBtn" onclick="previousStep()" disabled>← Previous</button>
+                    <button class="btn" id="nextBtn" onclick="nextStep()">Next →</button>
+                    <button class="btn btn-success" id="finishBtn" onclick="finishWrangling()" style="display: none;">✓ Finish</button>
                 </div>
             </div>
 
-            <!-- Value Operations Section -->
-            <div class="wrangling-section">
-                <h3>✏️ Value Operations</h3>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="valueColumn">Select Column:</label>
-                        <select id="valueColumn"></select>
-                    </div>
-                    <div class="control-group">
-                        <label for="oldValue">Old Value:</label>
-                        <input type="text" id="oldValue" placeholder="Value to replace">
-                    </div>
-                    <div class="control-group">
-                        <label for="newValue">New Value:</label>
-                        <input type="text" id="newValue" placeholder="New value">
-                    </div>
-                    <div class="control-group">
-                        <button class="btn" onclick="replaceValues()">Replace Values</button>
-                    </div>
+            <!-- Step 1: Sheet Selection -->
+            <div class="wrangling-card active" id="step1">
+                <div class="card-header">
+                    <h3>📋 Step 1: Select Your Data Sheet</h3>
+                    <p>Choose the sheet you want to clean and process</p>
                 </div>
-                
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="dateColumn">Date Column:</label>
-                        <select id="dateColumn"></select>
+                <div class="card-content">
+                    <div class="controls">
+                        <div class="control-group">
+                            <label for="wranglingSheet">Select Sheet:</label>
+                            <select id="wranglingSheet" onchange="updateWranglingSheet()"></select>
+                        </div>
                     </div>
-                    <div class="control-group">
-                        <label for="dateFormat">Target Format:</label>
-                        <select id="dateFormat">
-                            <option value="yyyy-mm-dd">YYYY-MM-DD</option>
-                            <option value="dd/mm/yyyy">DD/MM/YYYY</option>
-                            <option value="mm/dd/yyyy">MM/DD/YYYY</option>
-                            <option value="dd-mm-yyyy">DD-MM-YYYY</option>
-                            <option value="iso">ISO 8601</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <button class="btn" onclick="standardizeDates()">Standardize Dates</button>
-                    </div>
+                    <div id="sheetPreview"></div>
                 </div>
             </div>
 
-            <!-- Outlier Detection Section -->
-            <div class="wrangling-section">
-                <h3>📊 Outlier Detection & Removal</h3>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="outlierColumn">Numeric Column:</label>
-                        <select id="outlierColumn"></select>
-                    </div>
-                    <div class="control-group">
-                        <label for="outlierMethod">Detection Method:</label>
-                        <select id="outlierMethod">
-                            <option value="iqr">IQR (Interquartile Range)</option>
-                            <option value="zscore">Z-Score</option>
-                            <option value="modified_zscore">Modified Z-Score</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <label for="outlierAction">Action:</label>
-                        <select id="outlierAction">
-                            <option value="detect">Detect Only</option>
-                            <option value="remove">Remove</option>
-                            <option value="cap">Cap (Winsorize)</option>
-                            <option value="median">Replace with Median</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <label for="groupByColumn">Group By (Optional):</label>
-                        <select id="groupByColumn">
-                            <option value="">No Grouping</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <button class="btn" onclick="handleOutliers()">Process Outliers</button>
-                    </div>
+            <!-- Step 2: Data Quality Assessment -->
+            <div class="wrangling-card" id="step2">
+                <div class="card-header">
+                    <h3>🔍 Step 2: Data Quality Assessment</h3>
+                    <p>Analyze your data quality and detect potential issues</p>
                 </div>
-                <div id="outlierResults"></div>
+                <div class="card-content">
+                    <div class="controls">
+                        <div class="control-group">
+                            <button class="btn" onclick="runDataQualityCheck()">🔍 Run Quality Check</button>
+                            <button class="btn btn-secondary" onclick="detectDataTypes()">🧬 Detect Data Types</button>
+                        </div>
+                    </div>
+                    <div id="dataQualityResults"></div>
+                </div>
             </div>
 
-            <!-- Data Creation Section -->
-            <div class="wrangling-section">
-                <h3>➕ Create New Columns</h3>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="newColName">New Column Name:</label>
-                        <input type="text" id="newColName" placeholder="Enter column name">
-                    </div>
-                    <div class="control-group">
-                        <label for="groupByCol">Group By:</label>
-                        <select id="groupByCol"></select>
-                    </div>
-                    <div class="control-group">
-                        <label for="aggregateCol">Aggregate Column:</label>
-                        <select id="aggregateCol"></select>
-                    </div>
-                    <div class="control-group">
-                        <label for="aggregateFunction">Function:</label>
-                        <select id="aggregateFunction">
-                            <option value="sum">Sum</option>
-                            <option value="average">Average</option>
-                            <option value="count">Count</option>
-                            <option value="min">Minimum</option>
-                            <option value="max">Maximum</option>
-                            <option value="percentage">Percentage of Total</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <button class="btn" onclick="createAggregateColumn()">Create Column</button>
+            <!-- Step 3: Basic Data Cleaning -->
+            <div class="wrangling-card" id="step3">
+                <div class="card-header">
+                    <h3>🧹 Step 3: Basic Data Cleaning</h3>
+                    <p>Clean common data issues like spaces, special characters, and unnamed columns</p>
+                </div>
+                <div class="card-content">
+                    <div class="cleaning-options">
+                        <div class="cleaning-option">
+                            <div class="option-info">
+                                <h4>🔤 Trim Spaces</h4>
+                                <p>Remove leading and trailing spaces from all text cells</p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="trimSpaces()">Clean Spaces</button>
+                        </div>
+                        <div class="cleaning-option">
+                            <div class="option-info">
+                                <h4>🔣 Remove Accents</h4>
+                                <p>Convert accented characters to regular ASCII characters</p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="removeAccents()">Remove Accents</button>
+                        </div>
+                        <div class="cleaning-option">
+                            <div class="option-info">
+                                <h4>🚫 Remove Special Characters</h4>
+                                <p>Remove special characters like . ? / from text</p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="removeSpecialCharacters()">Clean Characters</button>
+                        </div>
+                        <div class="cleaning-option">
+                            <div class="option-info">
+                                <h4>📋 Remove Unnamed Columns</h4>
+                                <p>Delete columns without proper headers</p>
+                            </div>
+                            <button class="btn btn-secondary" onclick="removeUnnamedColumns()">Remove Columns</button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Uniqueness & Similarity Check Section -->
-            <div class="wrangling-section">
-                <h3>🔍 Uniqueness & Similarity Analysis</h3>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="uniqueColumn">Categorical Column:</label>
-                        <select id="uniqueColumn"></select>
+            <!-- Step 4: Column Operations -->
+            <div class="wrangling-card" id="step4">
+                <div class="card-header">
+                    <h3>📋 Step 4: Column Operations</h3>
+                    <p>Rename columns and sort your data</p>
+                </div>
+                <div class="card-content">
+                    <div class="operation-section">
+                        <h4>🏷️ Rename Columns</h4>
+                        <div class="controls">
+                            <div class="control-group">
+                                <label for="renameColumn">Select Column:</label>
+                                <select id="renameColumn"></select>
+                            </div>
+                            <div class="control-group">
+                                <label for="newColumnName">New Name:</label>
+                                <input type="text" id="newColumnName" placeholder="Enter new column name">
+                            </div>
+                            <div class="control-group">
+                                <button class="btn" onclick="renameColumn()">Rename Column</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="control-group">
-                        <label for="similarityThreshold">Similarity Threshold (0-1):</label>
-                        <input type="number" id="similarityThreshold" value="0.8" min="0" max="1" step="0.1">
-                    </div>
-                    <div class="control-group">
-                        <button class="btn" onclick="checkUniqueness()">Check Uniqueness</button>
-                        <button class="btn btn-secondary" onclick="findSimilarValues()">Find Similar Values</button>
+                    
+                    <div class="operation-section">
+                        <h4>🔄 Sort Data</h4>
+                        <div class="controls">
+                            <div class="control-group">
+                                <label for="sortColumn">Sort by Column:</label>
+                                <select id="sortColumn"></select>
+                            </div>
+                            <div class="control-group">
+                                <label for="sortOrder">Order:</label>
+                                <select id="sortOrder">
+                                    <option value="asc">Ascending</option>
+                                    <option value="desc">Descending</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <button class="btn" onclick="sortByColumn()">Sort Data</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div id="uniquenessResults"></div>
             </div>
 
-            <!-- Results and Preview -->
-            <div class="wrangling-section">
-                <h3>📄 Processed Data Preview</h3>
-                <div id="wranglingPreview"></div>
+            <!-- Step 5: Value Operations -->
+            <div class="wrangling-card" id="step5">
+                <div class="card-header">
+                    <h3>✏️ Step 5: Value Operations</h3>
+                    <p>Replace values and standardize date formats</p>
+                </div>
+                <div class="card-content">
+                    <div class="operation-section">
+                        <h4>🔄 Replace Values</h4>
+                        <div class="controls">
+                            <div class="control-group">
+                                <label for="valueColumn">Select Column:</label>
+                                <select id="valueColumn"></select>
+                            </div>
+                            <div class="control-group">
+                                <label for="oldValue">Old Value:</label>
+                                <input type="text" id="oldValue" placeholder="Value to replace">
+                            </div>
+                            <div class="control-group">
+                                <label for="newValue">New Value:</label>
+                                <input type="text" id="newValue" placeholder="New value">
+                            </div>
+                            <div class="control-group">
+                                <button class="btn" onclick="replaceValues()">Replace Values</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="operation-section">
+                        <h4>📅 Standardize Dates</h4>
+                        <div class="controls">
+                            <div class="control-group">
+                                <label for="dateColumn">Date Column:</label>
+                                <select id="dateColumn"></select>
+                            </div>
+                            <div class="control-group">
+                                <label for="dateFormat">Target Format:</label>
+                                <select id="dateFormat">
+                                    <option value="yyyy-mm-dd">YYYY-MM-DD</option>
+                                    <option value="dd/mm/yyyy">DD/MM/YYYY</option>
+                                    <option value="mm/dd/yyyy">MM/DD/YYYY</option>
+                                    <option value="dd-mm-yyyy">DD-MM-YYYY</option>
+                                    <option value="iso">ISO 8601</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <button class="btn" onclick="standardizeDates()">Standardize Dates</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 6: Advanced Analysis -->
+            <div class="wrangling-card" id="step6">
+                <div class="card-header">
+                    <h3>🔍 Step 6: Advanced Analysis</h3>
+                    <p>Detect outliers and analyze data uniqueness</p>
+                </div>
+                <div class="card-content">
+                    <div class="operation-section">
+                        <h4>📊 Outlier Detection</h4>
+                        <div class="controls">
+                            <div class="control-group">
+                                <label for="outlierColumn">Numeric Column:</label>
+                                <select id="outlierColumn"></select>
+                            </div>
+                            <div class="control-group">
+                                <label for="outlierMethod">Detection Method:</label>
+                                <select id="outlierMethod">
+                                    <option value="iqr">IQR (Interquartile Range)</option>
+                                    <option value="zscore">Z-Score</option>
+                                    <option value="modified_zscore">Modified Z-Score</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label for="outlierAction">Action:</label>
+                                <select id="outlierAction">
+                                    <option value="detect">Detect Only</option>
+                                    <option value="remove">Remove</option>
+                                    <option value="cap">Cap (Winsorize)</option>
+                                    <option value="median">Replace with Median</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label for="groupByColumn">Group By (Optional):</label>
+                                <select id="groupByColumn">
+                                    <option value="">No Grouping</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <button class="btn" onclick="handleOutliers()">Process Outliers</button>
+                            </div>
+                        </div>
+                        <div id="outlierResults"></div>
+                    </div>
+                    
+                    <div class="operation-section">
+                        <h4>🔍 Uniqueness & Similarity Analysis</h4>
+                        <div class="controls">
+                            <div class="control-group">
+                                <label for="uniqueColumn">Categorical Column:</label>
+                                <select id="uniqueColumn"></select>
+                            </div>
+                            <div class="control-group">
+                                <label for="similarityThreshold">Similarity Threshold (0-1):</label>
+                                <input type="number" id="similarityThreshold" value="0.8" min="0" max="1" step="0.1">
+                            </div>
+                            <div class="control-group">
+                                <button class="btn" onclick="checkUniqueness()">Check Uniqueness</button>
+                                <button class="btn btn-secondary" onclick="findSimilarValues()">Find Similar Values</button>
+                            </div>
+                        </div>
+                        <div id="uniquenessResults"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 7: Create New Columns -->
+            <div class="wrangling-card" id="step7">
+                <div class="card-header">
+                    <h3>➕ Step 7: Create New Columns</h3>
+                    <p>Generate calculated columns based on your data</p>
+                </div>
+                <div class="card-content">
+                    <div class="operation-section">
+                        <h4>📊 Aggregate Columns</h4>
+                        <div class="controls">
+                            <div class="control-group">
+                                <label for="newColName">New Column Name:</label>
+                                <input type="text" id="newColName" placeholder="Enter column name">
+                            </div>
+                            <div class="control-group">
+                                <label for="groupByCol">Group By:</label>
+                                <select id="groupByCol"></select>
+                            </div>
+                            <div class="control-group">
+                                <label for="aggregateCol">Aggregate Column:</label>
+                                <select id="aggregateCol"></select>
+                            </div>
+                            <div class="control-group">
+                                <label for="aggregateFunction">Function:</label>
+                                <select id="aggregateFunction">
+                                    <option value="sum">Sum</option>
+                                    <option value="average">Average</option>
+                                    <option value="count">Count</option>
+                                    <option value="min">Minimum</option>
+                                    <option value="max">Maximum</option>
+                                    <option value="percentage">Percentage of Total</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <button class="btn" onclick="createAggregateColumn()">Create Column</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="operation-section">
+                        <h4>📄 Final Data Preview</h4>
+                        <div id="wranglingPreview"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
