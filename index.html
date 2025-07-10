@@ -306,7 +306,32 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
-        /* Multi-select styles */
+        /* Checkbox styles */
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .checkbox-label {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            font-weight: normal !important;
+            margin-bottom: 0 !important;
+            cursor: pointer;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: auto !important;
+            margin: 0 !important;
+            transform: scale(1.2);
+        }
+
+        .checkbox-label span {
+            user-select: none;
+        }
         .multi-select-container {
             position: relative;
         }
@@ -445,14 +470,80 @@
             margin: 10px 0;
         }
 
+        /* Chart animation and rhythm styles */
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .chart-container {
+            position: relative;
+            margin-top: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .chart-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+            animation: shimmer 3s infinite;
+            pointer-events: none;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .rhythm-indicator {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            width: 12px;
+            height: 12px;
+            background: #28a745;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% { 
+                transform: scale(1.3);
+                opacity: 0.7;
+            }
+        }
+
+        .chart-style-indicator {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            padding: 5px 10px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            font-size: 0.8rem;
+            color: #667eea;
+            font-weight: 600;
+        }
+
         .export-controls {
             display: flex;
             gap: 10px;
             margin-top: 20px;
             flex-wrap: wrap;
         }
-
-        /* Responsive Design */
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
@@ -546,11 +637,17 @@
                     <select id="xAxis"></select>
                 </div>
                 <div class="control-group">
-                    <label for="yAxis">Y-Axis:</label>
-                    <select id="yAxis"></select>
+                    <label for="yAxis">Y-Axis (Multi-select):</label>
+                    <div class="multi-select-container">
+                        <div class="multi-select" id="yAxisMulti" onclick="toggleDropdown('yAxisMulti')">
+                            <span class="placeholder">Select columns for Y-axis...</span>
+                        </div>
+                        <div class="multi-select-dropdown" id="yAxisMultiDropdown"></div>
+                    </div>
                 </div>
-                <div class="control-group" style="display: flex; align-items: end;">
+                <div class="control-group" style="display: flex; align-items: end; gap: 10px;">
                     <button class="btn" onclick="generateChart()">Generate Chart</button>
+                    <button class="btn btn-secondary" onclick="clearChartSelections()">Clear</button>
                 </div>
             </div>
             <div class="chart-container">
@@ -608,18 +705,18 @@
 
                 <div class="control-group">
                     <label>Display Options:</label>
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
                             <input type="checkbox" id="showTotals" checked>
-                            Show Row/Column Totals
+                            <span>Show Row/Column Totals</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                        <label class="checkbox-label">
                             <input type="checkbox" id="showGrandTotal" checked>
-                            Show Grand Total
+                            <span>Show Grand Total</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                        <label class="checkbox-label">
                             <input type="checkbox" id="showPercentages">
-                            Show Percentages
+                            <span>Show Percentages</span>
                         </label>
                     </div>
                 </div>
@@ -632,6 +729,21 @@
 
             <div id="pivotStats" class="stats-grid" style="display: none;"></div>
             <div id="pivotResults"></div>
+            
+            <!-- Automatic Pivot Charts Section -->
+            <div id="pivotChartSection" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin: 30px 0 20px 0;">
+                    <h3 style="color: #667eea; margin: 0;">📊 Automatic Pivot Chart Visualization</h3>
+                    <div class="chart-controls">
+                        <button class="btn btn-secondary" onclick="toggleChartAnimation()" id="animationBtn">⏸️ Pause</button>
+                        <button class="btn btn-secondary" onclick="changeChartStyle()" id="styleBtn">🎨 Style</button>
+                        <button class="btn btn-secondary" onclick="exportPivotChart()">📸 Export Chart</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="pivotChart"></canvas>
+                </div>
+            </div>
             
             <div class="export-controls" id="exportControls" style="display: none;">
                 <button class="btn btn-secondary" onclick="exportPivotToExcel()">📊 Export to Excel</button>
@@ -689,6 +801,12 @@
         let currentPivotData = null;
         let selectedRowGroups = [];
         let selectedColGroups = [];
+        let selectedYAxisColumns = [];
+        let currentPivotChart = null;
+        let chartAnimationId = null;
+        let isChartAnimating = true;
+        let currentChartStyle = 0;
+        let chartStyles = ['gradient', 'neon', 'minimal', 'vibrant', 'dark'];
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
@@ -1014,97 +1132,188 @@
 
             const headers = workbookData[sheetName][0] || [];
             const xAxisSelect = document.getElementById('xAxis');
-            const yAxisSelect = document.getElementById('yAxis');
 
-            [xAxisSelect, yAxisSelect].forEach(select => {
-                select.innerHTML = '';
-                headers.forEach(header => {
-                    const option = document.createElement('option');
-                    option.value = header;
-                    option.textContent = header;
-                    select.appendChild(option);
-                });
+            // Update X-axis dropdown
+            xAxisSelect.innerHTML = '';
+            headers.forEach(header => {
+                const option = document.createElement('option');
+                option.value = header;
+                option.textContent = header;
+                xAxisSelect.appendChild(option);
             });
+
+            // Update Y-axis multi-select
+            selectedYAxisColumns = [];
+            updateMultiSelectDropdowns('yAxisMulti', headers);
+            updateMultiSelectDisplay('yAxisMulti');
         }
 
         function generateChart() {
             const sheetName = document.getElementById('chartSheet').value;
             const chartType = document.getElementById('chartType').value;
             const xAxis = document.getElementById('xAxis').value;
-            const yAxis = document.getElementById('yAxis').value;
 
-            if (!sheetName || !xAxis || !yAxis) {
-                showError('Please select sheet and axis columns');
+            if (!sheetName || !xAxis || selectedYAxisColumns.length === 0) {
+                showError('Please select sheet, X-axis, and at least one Y-axis column');
                 return;
             }
 
             const data = workbookData[sheetName];
             const headers = data[0];
             const xIndex = headers.indexOf(xAxis);
-            const yIndex = headers.indexOf(yAxis);
+            const yIndices = selectedYAxisColumns.map(col => headers.indexOf(col));
 
-            if (xIndex === -1 || yIndex === -1) {
+            if (xIndex === -1 || yIndices.some(index => index === -1)) {
                 showError('Selected columns not found');
                 return;
             }
 
-            const chartData = data.slice(1).map(row => ({
-                x: row[xIndex],
-                y: parseFloat(row[yIndex]) || 0
-            })).filter(item => item.x && !isNaN(item.y));
+            // Prepare chart data for multiple Y-axis columns
+            const chartData = data.slice(1).map(row => {
+                const item = { x: row[xIndex] };
+                selectedYAxisColumns.forEach((col, i) => {
+                    item[col] = parseFloat(row[yIndices[i]]) || 0;
+                });
+                return item;
+            }).filter(item => item.x && selectedYAxisColumns.some(col => !isNaN(item[col])));
 
             if (chartData.length === 0) {
                 showError('No valid data found for chart');
                 return;
             }
 
-            createChart(chartType, chartData, xAxis, yAxis);
+            createMultiColumnChart(chartType, chartData, xAxis, selectedYAxisColumns);
         }
 
-        function createChart(type, data, xLabel, yLabel) {
+        function createMultiColumnChart(type, data, xLabel, yLabels) {
             const ctx = document.getElementById('dataChart').getContext('2d');
             
             if (currentChart) {
                 currentChart.destroy();
             }
 
+            // Generate distinct colors for each dataset
+            const colors = [
+                'rgba(102, 126, 234, 0.8)',
+                'rgba(255, 99, 132, 0.8)',
+                'rgba(54, 162, 235, 0.8)',
+                'rgba(255, 205, 86, 0.8)',
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(153, 102, 255, 0.8)',
+                'rgba(255, 159, 64, 0.8)',
+                'rgba(199, 199, 199, 0.8)',
+                'rgba(83, 102, 255, 0.8)',
+                'rgba(255, 99, 255, 0.8)'
+            ];
+
+            const borderColors = colors.map(color => color.replace('0.8', '1'));
+
+            let datasets = [];
+
+            if (type === 'pie' && yLabels.length > 1) {
+                // For pie charts with multiple columns, sum all values for each x-axis item
+                const pieData = data.map(item => {
+                    const total = yLabels.reduce((sum, label) => sum + (item[label] || 0), 0);
+                    return { label: item.x, value: total };
+                });
+
+                datasets = [{
+                    data: pieData.map(item => item.value),
+                    backgroundColor: colors.slice(0, pieData.length),
+                    borderColor: borderColors.slice(0, pieData.length),
+                    borderWidth: 2
+                }];
+
+                const config = {
+                    type: 'pie',
+                    data: {
+                        labels: pieData.map(item => item.label),
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `${yLabels.join(' + ')} by ${xLabel}`,
+                                font: { size: 16 }
+                            },
+                            legend: {
+                                display: true,
+                                position: 'right'
+                            }
+                        }
+                    }
+                };
+
+                currentChart = new Chart(ctx, config);
+                return;
+            }
+
+            // For other chart types, create separate datasets for each Y column
+            datasets = yLabels.map((label, index) => ({
+                label: label,
+                data: data.map(item => item[label]),
+                backgroundColor: colors[index % colors.length],
+                borderColor: borderColors[index % borderColors.length],
+                borderWidth: 2,
+                fill: type === 'line' ? false : true,
+                tension: type === 'line' ? 0.4 : 0
+            }));
+
             const config = {
-                type: type,
+                type: type === 'scatter' ? 'scatter' : type,
                 data: {
                     labels: data.map(item => item.x),
-                    datasets: [{
-                        label: yLabel,
-                        data: data.map(item => item.y),
-                        backgroundColor: type === 'pie' ? 
-                            generateColors(data.length) : 
-                            'rgba(102, 126, 234, 0.6)',
-                        borderColor: 'rgba(102, 126, 234, 1)',
-                        borderWidth: 2
-                    }]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
                     plugins: {
                         title: {
                             display: true,
-                            text: `${yLabel} by ${xLabel}`
+                            text: `${yLabels.join(', ')} by ${xLabel}`,
+                            font: { size: 16 }
                         },
                         legend: {
-                            display: type === 'pie'
+                            display: yLabels.length > 1,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return `${xLabel}: ${context[0].label}`;
+                                }
+                            }
                         }
                     },
                     scales: type !== 'pie' ? {
                         x: {
                             title: {
                                 display: true,
-                                text: xLabel
+                                text: xLabel,
+                                font: { size: 14 }
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0,0,0,0.1)'
                             }
                         },
                         y: {
                             title: {
                                 display: true,
-                                text: yLabel
-                            }
+                                text: yLabels.length === 1 ? yLabels[0] : 'Values',
+                                font: { size: 14 }
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0,0,0,0.1)'
+                            },
+                            beginAtZero: true
                         }
                     } : {}
                 }
@@ -1179,7 +1388,15 @@
 
         function updateDropdownSelections(containerId) {
             const dropdown = document.getElementById(containerId + 'Dropdown');
-            const selectedItems = containerId === 'rowGroups' ? selectedRowGroups : selectedColGroups;
+            let selectedItems;
+            
+            if (containerId === 'rowGroups') {
+                selectedItems = selectedRowGroups;
+            } else if (containerId === 'colGroups') {
+                selectedItems = selectedColGroups;
+            } else if (containerId === 'yAxisMulti') {
+                selectedItems = selectedYAxisColumns;
+            }
             
             dropdown.querySelectorAll('.multi-select-option').forEach(option => {
                 if (selectedItems.includes(option.textContent)) {
@@ -1191,7 +1408,16 @@
         }
 
         function toggleSelection(containerId, option) {
-            const selectedItems = containerId === 'rowGroups' ? selectedRowGroups : selectedColGroups;
+            let selectedItems;
+            
+            if (containerId === 'rowGroups') {
+                selectedItems = selectedRowGroups;
+            } else if (containerId === 'colGroups') {
+                selectedItems = selectedColGroups;
+            } else if (containerId === 'yAxisMulti') {
+                selectedItems = selectedYAxisColumns;
+            }
+            
             const index = selectedItems.indexOf(option);
             
             if (index > -1) {
@@ -1206,17 +1432,26 @@
 
         function updateMultiSelectDisplay(containerId) {
             const container = document.getElementById(containerId);
-            const selectedItems = containerId === 'rowGroups' ? selectedRowGroups : selectedColGroups;
+            let selectedItems, placeholder;
+            
+            if (containerId === 'rowGroups') {
+                selectedItems = selectedRowGroups;
+                placeholder = 'Select columns for row grouping...';
+            } else if (containerId === 'colGroups') {
+                selectedItems = selectedColGroups;
+                placeholder = 'Select columns for column grouping...';
+            } else if (containerId === 'yAxisMulti') {
+                selectedItems = selectedYAxisColumns;
+                placeholder = 'Select columns for Y-axis...';
+            }
             
             container.innerHTML = '';
             
             if (selectedItems.length === 0) {
-                const placeholder = document.createElement('span');
-                placeholder.className = 'placeholder';
-                placeholder.textContent = containerId === 'rowGroups' ? 
-                    'Select columns for row grouping...' : 
-                    'Select columns for column grouping...';
-                container.appendChild(placeholder);
+                const placeholderElement = document.createElement('span');
+                placeholderElement.className = 'placeholder';
+                placeholderElement.textContent = placeholder;
+                container.appendChild(placeholderElement);
             } else {
                 selectedItems.forEach(item => {
                     const tag = document.createElement('div');
@@ -1231,7 +1466,16 @@
         }
 
         function removeSelection(containerId, item) {
-            const selectedItems = containerId === 'rowGroups' ? selectedRowGroups : selectedColGroups;
+            let selectedItems;
+            
+            if (containerId === 'rowGroups') {
+                selectedItems = selectedRowGroups;
+            } else if (containerId === 'colGroups') {
+                selectedItems = selectedColGroups;
+            } else if (containerId === 'yAxisMulti') {
+                selectedItems = selectedYAxisColumns;
+            }
+            
             const index = selectedItems.indexOf(item);
             if (index > -1) {
                 selectedItems.splice(index, 1);
@@ -1457,6 +1701,9 @@
             document.getElementById('pivotStats').innerHTML = statsHtml;
             document.getElementById('pivotStats').style.display = 'grid';
             document.getElementById('pivotResults').innerHTML = html;
+            
+            // Generate automatic rhythm chart for pivot table
+            generateAutomaticPivotChart(pivotData, grandTotal);
         }
 
         function clearPivotTable() {
@@ -1470,6 +1717,363 @@
             document.getElementById('pivotResults').innerHTML = '';
             document.getElementById('pivotStats').style.display = 'none';
             document.getElementById('exportControls').style.display = 'none';
+            document.getElementById('pivotChartSection').style.display = 'none';
+            
+            // Clear pivot chart
+            if (currentPivotChart) {
+                currentPivotChart.destroy();
+                currentPivotChart = null;
+            }
+            
+            if (chartAnimationId) {
+                cancelAnimationFrame(chartAnimationId);
+                chartAnimationId = null;
+            }
+        }
+
+        // Automatic Pivot Chart Functions
+        function generateAutomaticPivotChart(pivotData, grandTotal) {
+            const { data, rowKeys, colKeys, valueColumn, aggregation } = pivotData;
+            
+            // Show chart section
+            document.getElementById('pivotChartSection').style.display = 'block';
+            
+            // Prepare chart data
+            const chartData = prepareChartDataFromPivot(data, rowKeys, colKeys);
+            
+            // Create the rhythm chart
+            createRhythmPivotChart(chartData, valueColumn, aggregation);
+            
+            // Start animation
+            startChartAnimation();
+        }
+
+        function prepareChartDataFromPivot(data, rowKeys, colKeys) {
+            const datasets = [];
+            const labels = rowKeys.map(key => key.split('|').join(' - '));
+            
+            // Create dataset for each column
+            colKeys.forEach((colKey, index) => {
+                const colData = rowKeys.map(rowKey => data[rowKey][colKey] || 0);
+                
+                datasets.push({
+                    label: colKey.split('|').join(' - '),
+                    data: colData,
+                    originalData: [...colData], // Store original for animation
+                    backgroundColor: generateRhythmColors(index, colKeys.length),
+                    borderColor: generateRhythmBorderColors(index, colKeys.length),
+                    borderWidth: 2,
+                    borderRadius: 8,
+                    borderSkipped: false
+                });
+            });
+            
+            return { labels, datasets };
+        }
+
+        function generateRhythmColors(index, total) {
+            const styles = {
+                gradient: [
+                    'rgba(102, 126, 234, 0.8)',
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 205, 86, 0.8)',
+                    'rgba(75, 192, 192, 0.8)'
+                ],
+                neon: [
+                    'rgba(57, 255, 20, 0.8)',
+                    'rgba(255, 20, 147, 0.8)',
+                    'rgba(0, 191, 255, 0.8)',
+                    'rgba(255, 215, 0, 0.8)',
+                    'rgba(138, 43, 226, 0.8)'
+                ],
+                minimal: [
+                    'rgba(108, 117, 125, 0.8)',
+                    'rgba(73, 80, 87, 0.8)',
+                    'rgba(52, 58, 64, 0.8)',
+                    'rgba(33, 37, 41, 0.8)',
+                    'rgba(173, 181, 189, 0.8)'
+                ],
+                vibrant: [
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(220, 53, 69, 0.8)',
+                    'rgba(40, 167, 69, 0.8)',
+                    'rgba(0, 123, 255, 0.8)',
+                    'rgba(111, 66, 193, 0.8)'
+                ],
+                dark: [
+                    'rgba(139, 69, 19, 0.8)',
+                    'rgba(25, 25, 112, 0.8)',
+                    'rgba(128, 0, 0, 0.8)',
+                    'rgba(0, 100, 0, 0.8)',
+                    'rgba(72, 61, 139, 0.8)'
+                ]
+            };
+            
+            const currentStyle = chartStyles[currentChartStyle];
+            return styles[currentStyle][index % styles[currentStyle].length];
+        }
+
+        function generateRhythmBorderColors(index, total) {
+            return generateRhythmColors(index, total).replace('0.8', '1');
+        }
+
+        function createRhythmPivotChart(chartData, valueColumn, aggregation) {
+            const ctx = document.getElementById('pivotChart').getContext('2d');
+            
+            if (currentPivotChart) {
+                currentPivotChart.destroy();
+            }
+
+            // Add rhythm indicator
+            const chartContainer = document.querySelector('#pivotChartSection .chart-container');
+            if (!chartContainer.querySelector('.rhythm-indicator')) {
+                chartContainer.insertAdjacentHTML('beforeend', '<div class="rhythm-indicator"></div>');
+            }
+            
+            // Add style indicator
+            if (!chartContainer.querySelector('.chart-style-indicator')) {
+                chartContainer.insertAdjacentHTML('beforeend', 
+                    `<div class="chart-style-indicator">${chartStyles[currentChartStyle].toUpperCase()}</div>`);
+            } else {
+                chartContainer.querySelector('.chart-style-indicator').textContent = 
+                    chartStyles[currentChartStyle].toUpperCase();
+            }
+
+            const config = {
+                type: 'bar',
+                data: {
+                    labels: chartData.labels,
+                    datasets: chartData.datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 2000,
+                        easing: 'easeInOutQuart'
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Pivot Analysis: ${valueColumn} (${aggregation}) - Rhythm Visualization`,
+                            font: { 
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            color: '#667eea'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: 'white',
+                            bodyColor: 'white',
+                            borderColor: '#667eea',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                title: function(context) {
+                                    return `Category: ${context[0].label}`;
+                                },
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Categories',
+                                font: { size: 14, weight: 'bold' },
+                                color: '#667eea'
+                            },
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 0
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: `${valueColumn} (${aggregation})`,
+                                font: { size: 14, weight: 'bold' },
+                                color: '#667eea'
+                            },
+                            grid: {
+                                color: 'rgba(102, 126, 234, 0.1)',
+                                lineWidth: 1
+                            },
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            currentPivotChart = new Chart(ctx, config);
+        }
+
+        function startChartAnimation() {
+            if (!currentPivotChart || !isChartAnimating) return;
+            
+            let frame = 0;
+            const animateChart = () => {
+                frame++;
+                
+                // Create rhythm effect by pulsing the data
+                const datasets = currentPivotChart.data.datasets;
+                datasets.forEach((dataset, datasetIndex) => {
+                    dataset.data = dataset.originalData.map((value, index) => {
+                        const rhythm = Math.sin((frame + index * 10 + datasetIndex * 20) * 0.1) * 0.1 + 1;
+                        return value * rhythm;
+                    });
+                });
+                
+                // Update colors with rhythm
+                datasets.forEach((dataset, index) => {
+                    const alpha = (Math.sin(frame * 0.05 + index) * 0.2 + 0.8);
+                    dataset.backgroundColor = generateRhythmColors(index, datasets.length).replace('0.8', alpha.toFixed(2));
+                });
+                
+                currentPivotChart.update('none');
+                
+                if (isChartAnimating) {
+                    chartAnimationId = requestAnimationFrame(animateChart);
+                }
+            };
+            
+            chartAnimationId = requestAnimationFrame(animateChart);
+        }
+
+        function toggleChartAnimation() {
+            isChartAnimating = !isChartAnimating;
+            const btn = document.getElementById('animationBtn');
+            
+            if (isChartAnimating) {
+                btn.textContent = '⏸️ Pause';
+                btn.title = 'Pause animation';
+                startChartAnimation();
+                
+                // Restart rhythm indicator
+                const indicator = document.querySelector('.rhythm-indicator');
+                if (indicator) {
+                    indicator.style.animation = 'pulse 1.5s infinite';
+                }
+            } else {
+                btn.textContent = '▶️ Play';
+                btn.title = 'Resume animation';
+                
+                if (chartAnimationId) {
+                    cancelAnimationFrame(chartAnimationId);
+                    chartAnimationId = null;
+                }
+                
+                // Stop rhythm indicator
+                const indicator = document.querySelector('.rhythm-indicator');
+                if (indicator) {
+                    indicator.style.animation = 'none';
+                }
+                
+                // Reset to original data
+                if (currentPivotChart) {
+                    currentPivotChart.data.datasets.forEach(dataset => {
+                        dataset.data = [...dataset.originalData];
+                    });
+                    currentPivotChart.update();
+                }
+            }
+        }
+
+        function changeChartStyle() {
+            currentChartStyle = (currentChartStyle + 1) % chartStyles.length;
+            
+            if (currentPivotChart) {
+                // Update colors with new style
+                currentPivotChart.data.datasets.forEach((dataset, index) => {
+                    dataset.backgroundColor = generateRhythmColors(index, currentPivotChart.data.datasets.length);
+                    dataset.borderColor = generateRhythmBorderColors(index, currentPivotChart.data.datasets.length);
+                });
+                
+                // Update style indicator
+                const styleIndicator = document.querySelector('.chart-style-indicator');
+                if (styleIndicator) {
+                    styleIndicator.textContent = chartStyles[currentChartStyle].toUpperCase();
+                }
+                
+                currentPivotChart.update('active');
+                
+                // Show brief notification
+                showSuccess(`Chart style changed to: ${chartStyles[currentChartStyle].toUpperCase()}`);
+            }
+        }
+
+        function exportPivotChart() {
+            if (!currentPivotChart) {
+                showError('No pivot chart to export');
+                return;
+            }
+
+            // Temporarily pause animation for clean export
+            const wasAnimating = isChartAnimating;
+            if (isChartAnimating) {
+                toggleChartAnimation();
+            }
+            
+            // Reset to original data for export
+            if (currentPivotChart) {
+                currentPivotChart.data.datasets.forEach(dataset => {
+                    dataset.data = [...dataset.originalData];
+                });
+                currentPivotChart.update('none');
+            }
+            
+            setTimeout(() => {
+                const canvas = document.getElementById('pivotChart');
+                const url = canvas.toDataURL('image/png', 1.0);
+                
+                const link = document.createElement('a');
+                link.download = `pivot_chart_${chartStyles[currentChartStyle]}_${new Date().getTime()}.png`;
+                link.href = url;
+                link.click();
+                
+                showSuccess('Pivot chart exported successfully!');
+                
+                // Resume animation if it was running
+                if (wasAnimating) {
+                    setTimeout(() => toggleChartAnimation(), 100);
+                }
+            }, 100);
+        }
+
+        function clearChartSelections() {
+            selectedYAxisColumns = [];
+            updateMultiSelectDisplay('yAxisMulti');
+            
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
         }
 
         // Export functions
