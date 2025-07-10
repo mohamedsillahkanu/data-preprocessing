@@ -491,7 +491,6 @@
             
             <div id="overviewStats" class="stats-grid"></div>
             <div id="dataQualityReport"></div>
-            <div id="dataPreview"></div>
         </div>
     </div>
 
@@ -700,66 +699,9 @@
                 </div>
             `;
             document.getElementById('overviewStats').innerHTML = statsHtml;
-
-            // Show data preview
-            showDataPreview(data, sheetName);
         }
 
-        function showDataPreview(data, sheetName) {
-            const maxRows = Math.min(data.length, 11);
-            
-            let html = `
-                <div class="quality-report">
-                    <h4>📄 ${sheetName} - Data Preview</h4>
-                    <div class="data-table">
-                        <table>
-                            <thead>
-                                <tr>
-            `;
-            
-            if (data.length > 0) {
-                const maxCols = Math.min(data[0].length, 10);
-                for (let i = 0; i < maxCols; i++) {
-                    html += `<th>${data[0][i] || `Column ${i+1}`}</th>`;
-                }
-                if (data[0].length > 10) {
-                    html += '<th>...</th>';
-                }
-            }
-            
-            html += `
-                                </tr>
-                            </thead>
-                            <tbody>
-            `;
-            
-            for (let i = 1; i < maxRows; i++) {
-                if (data[i]) {
-                    html += '<tr>';
-                    const maxCols = Math.min(data[i].length, 10);
-                    for (let j = 0; j < maxCols; j++) {
-                        html += `<td>${data[i][j] || ''}</td>`;
-                    }
-                    if (data[i].length > 10) {
-                        html += '<td>...</td>';
-                    }
-                    html += '</tr>';
-                }
-            }
-            
-            if (data.length > 11) {
-                html += '<tr><td colspan="100%" style="text-align: center; font-style: italic;">... and more rows</td></tr>';
-            }
-            
-            html += `
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('dataPreview').innerHTML = html;
-        }
+
 
         function countColumnsByType(data, type) {
             if (data.length < 2) return 0;
@@ -865,7 +807,7 @@
                     severity: 'critical',
                     description: 'Column has no proper name or contains generic naming',
                     count: 1,
-                    suggestion: 'Rename column with descriptive name',
+                    suggestion: 'Rename column with descriptive name or remove',
                     canFix: true,
                     fixAction: 'removeUnnamedColumns'
                 });
@@ -956,7 +898,7 @@
                 });
             }
 
-            // 6. Check for special characters
+            // 6. Check for special characters (.?/)
             const specialCharCount = nonEmptyData.filter(val => 
                 typeof val === 'string' && /[.?/]/.test(val)
             ).length;
@@ -976,7 +918,7 @@
                 });
             }
 
-            // 7. Check for numeric values stored as text
+            // 7. Check for numeric values stored as text (Value Specification)
             if (typeAnalysis.type === 'Text') {
                 const numericAsTextCount = nonEmptyData.filter(val => 
                     typeof val === 'string' && !isNaN(parseFloat(val.replace(/[,\s]/g, ''))) && val.trim() !== ''
@@ -988,7 +930,7 @@
                         severity: 'warning',
                         description: `${numericAsTextCount} numeric values stored as text`,
                         count: numericAsTextCount,
-                        suggestion: 'Convert to numeric data type',
+                        suggestion: 'Convert to numeric data type for proper calculations',
                         canFix: true,
                         fixAction: 'convertToNumeric',
                         samples: nonEmptyData.filter(val => 
@@ -998,114 +940,66 @@
                 }
             }
 
-            // 8. Check for duplicates (for categorical data)
+            // 8. Data Uniqueness Check for Categorical Variables
             if (typeAnalysis.type === 'Text' && report.uniqueValues < report.nonEmptyValues) {
                 const duplicateCount = report.nonEmptyValues - report.uniqueValues;
                 const duplicatePercentage = (duplicateCount / report.nonEmptyValues) * 100;
                 
                 if (duplicatePercentage > 10) {
                     const severity = duplicatePercentage > 50 ? 'warning' : 'info';
+                    
+                    // Get unique values in alphabetical order
+                    const uniqueValues = [...new Set(nonEmptyData.map(v => String(v)))].sort();
+                    const valueCounts = {};
+                    nonEmptyData.forEach(val => {
+                        const strVal = String(val);
+                        valueCounts[strVal] = (valueCounts[strVal] || 0) + 1;
+                    });
+
                     report.issues.push({
                         type: 'Duplicate Values',
                         severity: severity,
                         description: `${duplicateCount} duplicate values (${duplicatePercentage.toFixed(1)}%)`,
                         count: duplicateCount,
                         suggestion: 'Review for data entry errors or consolidation opportunities',
-                        canFix: false
+                        canFix: false,
+                        uniqueValuesAlphabetical: uniqueValues.map(val => ({
+                            value: val,
+                            count: valueCounts[val]
+                        }))
                     });
                 }
             }
 
-            // 9. Check for potential similarity issues
-            if (typeAnalysis.type === 'Text' && report.uniqueValues > 5 && report.uniqueValues < 100) {
-                const uniqueValues = [...new Set(nonEmptyData)];
-                let similarPairs = 0;
+            // 9. Similarity Check for Categorical Variables
+            if (typeAnalysis.type === 'Text' && report.uniqueValues > 2 && report.uniqueValues < 100) {
+                const uniqueValues = [...new Set(nonEmptyData.map(v => String(v)))];
+                const similarPairs = [];
                 
                 for (let i = 0; i < uniqueValues.length && i < 50; i++) {
                     for (let j = i + 1; j < uniqueValues.length && j < 50; j++) {
-                        if (calculateSimilarity(uniqueValues[i], uniqueValues[j]) > 0.8) {
-                            similarPairs++;
+                        const similarity = calculateSimilarity(uniqueValues[i], uniqueValues[j]);
+                        if (similarity >= 0.75 && similarity < 1) {
+                            similarPairs.push({
+                                value1: uniqueValues[i],
+                                value2: uniqueValues[j],
+                                similarity: similarity
+                            });
                         }
                     }
                 }
                 
-                if (similarPairs > 0) {
+                if (similarPairs.length > 0) {
                     report.issues.push({
                         type: 'Similar Values',
                         severity: 'info',
-                        description: `${similarPairs} pairs of similar values detected`,
-                        count: similarPairs,
+                        description: `${similarPairs.length} pairs of similar values detected`,
+                        count: similarPairs.length,
                         suggestion: 'Check for spelling variations or data entry errors',
-                        canFix: false
+                        canFix: false,
+                        similarPairs: similarPairs.slice(0, 10) // Limit to first 10 pairs
                     });
                 }
-            }
-
-            // 10. Check for outliers (numeric data only)
-            if (typeAnalysis.type === 'Numeric') {
-                const numericValues = nonEmptyData.map(v => parseFloat(v)).filter(v => !isNaN(v));
-                if (numericValues.length > 5) {
-                    const outliers = detectOutliersIQR(numericValues);
-                    if (outliers.length > 0) {
-                        const outlierPercentage = (outliers.length / numericValues.length) * 100;
-                        const severity = outlierPercentage > 10 ? 'warning' : 'info';
-                        report.issues.push({
-                            type: 'Outliers Detected',
-                            severity: severity,
-                            description: `${outliers.length} potential outliers (${outlierPercentage.toFixed(1)}%)`,
-                            count: outliers.length,
-                            suggestion: 'Review outliers for data entry errors',
-                            canFix: false,
-                            samples: outliers.slice(0, 5).map(v => v.toString())
-                        });
-                    }
-                }
-            }
-
-            // 11. Check for extreme values or unusual patterns
-            if (typeAnalysis.type === 'Text') {
-                const longValues = nonEmptyData.filter(val => 
-                    typeof val === 'string' && val.length > 100
-                ).length;
-                
-                if (longValues > 0) {
-                    report.issues.push({
-                        type: 'Extremely Long Values',
-                        severity: 'info',
-                        description: `${longValues} values are unusually long (>100 characters)`,
-                        count: longValues,
-                        suggestion: 'Review for data truncation or formatting issues',
-                        canFix: false
-                    });
-                }
-
-                const mixedValues = nonEmptyData.filter(val => 
-                    typeof val === 'string' && /\d/.test(val) && /[a-zA-Z]/.test(val)
-                ).length;
-                
-                if (mixedValues > nonEmptyData.length * 0.3) {
-                    report.issues.push({
-                        type: 'Mixed Alphanumeric',
-                        severity: 'info',
-                        description: `${mixedValues} values contain mixed letters and numbers`,
-                        count: mixedValues,
-                        suggestion: 'Verify if this is expected format',
-                        canFix: false
-                    });
-                }
-            }
-
-            // 12. Check data completeness score
-            const completenessScore = (report.nonEmptyValues / totalRows) * 100;
-            if (completenessScore < 95 && completenessScore >= 70) {
-                report.issues.push({
-                    type: 'Data Completeness',
-                    severity: 'info',
-                    description: `Column is ${completenessScore.toFixed(1)}% complete`,
-                    count: totalRows - report.nonEmptyValues,
-                    suggestion: 'Consider data imputation strategies',
-                    canFix: false
-                });
             }
 
             return report;
@@ -1117,7 +1011,6 @@
             }
 
             let numCount = 0;
-            let dateCount = 0;
             let boolCount = 0;
             let issues = [];
             let inconsistentSamples = [];
@@ -1133,10 +1026,6 @@
                     inconsistentSamples.push(strVal);
                 }
                 
-                if (isValidDate(strVal)) {
-                    dateCount++;
-                }
-                
                 if (['true', 'false', 'yes', 'no', '1', '0'].includes(strVal.toLowerCase())) {
                     boolCount++;
                 }
@@ -1150,7 +1039,6 @@
 
             const total = columnData.length;
             const numPercent = (numCount / total) * 100;
-            const datePercent = (dateCount / total) * 100;
             const boolPercent = (boolCount / total) * 100;
 
             let type, confidence, recommendedType, convertible = false;
@@ -1162,11 +1050,6 @@
                     recommendedType = 'Number';
                     convertible = true;
                 }
-            } else if (datePercent >= 80) {
-                type = 'Date';
-                confidence = Math.round(datePercent);
-                recommendedType = 'Date';
-                convertible = true;
             } else if (boolPercent >= 80) {
                 type = 'Boolean';
                 confidence = Math.round(boolPercent);
@@ -1174,7 +1057,7 @@
                 convertible = true;
             } else {
                 type = 'Text';
-                confidence = Math.round(Math.max(100 - numPercent - datePercent - boolPercent, 0));
+                confidence = Math.round(Math.max(100 - numPercent - boolPercent, 0));
             }
 
             return { 
@@ -1187,21 +1070,9 @@
             };
         }
 
-        function isValidDate(dateString) {
-            const date = new Date(dateString);
-            return date instanceof Date && !isNaN(date);
-        }
 
-        function detectOutliersIQR(values) {
-            const sorted = values.slice().sort((a, b) => a - b);
-            const q1 = sorted[Math.floor(sorted.length * 0.25)];
-            const q3 = sorted[Math.floor(sorted.length * 0.75)];
-            const iqr = q3 - q1;
-            const lowerBound = q1 - 1.5 * iqr;
-            const upperBound = q3 + 1.5 * iqr;
-            
-            return values.filter(v => v < lowerBound || v > upperBound);
-        }
+
+
 
         function calculateSimilarity(str1, str2) {
             const longer = str1.length > str2.length ? str1 : str2;
@@ -1340,6 +1211,22 @@
                                     <div class="samples-list">
                                         <strong>Examples:</strong>
                                         ${issue.samples.map(sample => `<div class="sample-item">${sample}</div>`).join('')}
+                                    </div>
+                                ` : ''}
+                                ${issue.uniqueValuesAlphabetical ? `
+                                    <div class="samples-list">
+                                        <strong>All Unique Values (Alphabetical):</strong>
+                                        ${issue.uniqueValuesAlphabetical.map(item => 
+                                            `<div class="sample-item">${item.value} (${item.count} times)</div>`
+                                        ).join('')}
+                                    </div>
+                                ` : ''}
+                                ${issue.similarPairs ? `
+                                    <div class="samples-list">
+                                        <strong>Similar Value Pairs:</strong>
+                                        ${issue.similarPairs.map(pair => 
+                                            `<div class="sample-item">"${pair.value1}" ↔ "${pair.value2}" (${(pair.similarity * 100).toFixed(1)}% similar)</div>`
+                                        ).join('')}
                                     </div>
                                 ` : ''}
                             </div>
