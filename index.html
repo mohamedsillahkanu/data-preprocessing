@@ -291,6 +291,12 @@
             font-weight: bold;
         }
 
+        .pivot-grand-total {
+            background: linear-gradient(135deg, #28a745, #20c997) !important;
+            color: white !important;
+            font-weight: bold;
+        }
+
         .pivot-col-total {
             background: linear-gradient(135deg, #fd7e14, #e55a00) !important;
             color: white !important;
@@ -951,9 +957,6 @@
                     html += `<th class="pivot-header">${colKey}</th>`;
                 });
                 
-                if (showTotals) {
-                    html += '<th class="pivot-total">Row Total</th>';
-                }
                 html += '</tr>';
                 
                 // Sub-header with aggregation function
@@ -966,9 +969,6 @@
                     html += `<th class="pivot-subheader">${aggregation.charAt(0).toUpperCase() + aggregation.slice(1)} of ${valueCol}</th>`;
                 });
                 
-                if (showTotals) {
-                    html += '<th class="pivot-subheader">Total</th>';
-                }
                 html += '</tr>';
                 html += '</thead>';
             } else {
@@ -1007,16 +1007,6 @@
                     html += `<td class="pivot-value">${displayValue}</td>`;
                 });
                 
-                // Row total
-                if (showTotals && rowTotals[rowKey] !== undefined) {
-                    let totalDisplay = formatNumber(rowTotals[rowKey]);
-                    if (showPercentages && grandTotal && grandTotal !== 0) {
-                        const percentage = (rowTotals[rowKey] / grandTotal * 100).toFixed(1);
-                        totalDisplay = `${totalDisplay} (${percentage}%)`;
-                    }
-                    html += `<td class="pivot-total">${totalDisplay}</td>`;
-                }
-                
                 html += '</tr>';
             });
             
@@ -1041,14 +1031,26 @@
                     html += `<td class="pivot-col-total">${totalDisplay}</td>`;
                 });
                 
-                // Grand total
-                if (showGrandTotal && grandTotal !== null) {
-                    let grandDisplay = formatNumber(grandTotal);
-                    if (showPercentages) {
-                        grandDisplay = `${grandDisplay} (100.0%)`;
-                    }
-                    html += `<td class="pivot-total"><strong>${grandDisplay}</strong></td>`;
+                html += '</tr>';
+            }
+            
+            // Grand total row at the bottom
+            if (showGrandTotal && grandTotal !== null) {
+                html += '<tr>';
+                
+                // Grand total label
+                for (let i = 0; i < rowGroups.length - 1; i++) {
+                    html += '<td class="pivot-grand-total"></td>';
                 }
+                html += '<td class="pivot-grand-total"><strong>Grand Total</strong></td>';
+                
+                // Grand total spanning across data columns
+                const totalCols = colGroups.length > 0 ? colKeys.length : 1;
+                let grandDisplay = formatNumber(grandTotal);
+                if (showPercentages) {
+                    grandDisplay = `${grandDisplay} (100.0%)`;
+                }
+                html += `<td colspan="${totalCols}" class="pivot-grand-total"><strong>${grandDisplay}</strong></td>`;
                 
                 html += '</tr>';
             }
@@ -1105,6 +1107,15 @@
             // Show loading message
             showMessage('Generating PNG image...', 'info');
 
+            // Temporarily remove max-height and overflow to capture full table
+            const originalStyle = {
+                maxHeight: pivotElement.style.maxHeight,
+                overflow: pivotElement.style.overflow
+            };
+            
+            pivotElement.style.maxHeight = 'none';
+            pivotElement.style.overflow = 'visible';
+
             // Use html2canvas to capture the pivot table
             html2canvas(pivotElement, {
                 backgroundColor: '#ffffff',
@@ -1115,10 +1126,13 @@
                 scrollY: 0,
                 width: pivotElement.scrollWidth,
                 height: pivotElement.scrollHeight,
-                onrendered: function(canvas) {
-                    // This is for older versions of html2canvas
-                }
+                windowWidth: pivotElement.scrollWidth,
+                windowHeight: pivotElement.scrollHeight
             }).then(function(canvas) {
+                // Restore original styles
+                pivotElement.style.maxHeight = originalStyle.maxHeight;
+                pivotElement.style.overflow = originalStyle.overflow;
+                
                 // Create download link
                 const link = document.createElement('a');
                 link.download = 'pivot_table_export.png';
@@ -1131,6 +1145,10 @@
                 
                 showMessage('PNG exported successfully!', 'success');
             }).catch(function(error) {
+                // Restore original styles on error
+                pivotElement.style.maxHeight = originalStyle.maxHeight;
+                pivotElement.style.overflow = originalStyle.overflow;
+                
                 console.error('Error generating PNG:', error);
                 showError('Failed to generate PNG. Please try again.');
             });
