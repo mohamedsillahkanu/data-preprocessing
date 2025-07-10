@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Data Quality Assessment Tool</title>
+    <title>Enhanced Multi-Column Pivot Table Tool</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
     <style>
@@ -102,7 +103,7 @@
             border-left: 4px solid #28a745;
         }
 
-        .main-section {
+        .pivot-section {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 20px;
@@ -112,26 +113,25 @@
         }
 
         .controls {
-            display: flex;
-            gap: 15px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
             margin-bottom: 30px;
-            flex-wrap: wrap;
         }
 
         .control-group {
-            flex: 1;
-            min-width: 200px;
+            display: flex;
+            flex-direction: column;
         }
 
         label {
-            display: block;
             margin-bottom: 8px;
             font-weight: 600;
             color: #333;
+            font-size: 0.9rem;
         }
 
         select, input {
-            width: 100%;
             padding: 12px 15px;
             border: 2px solid #e0e0e0;
             border-radius: 10px;
@@ -144,6 +144,78 @@
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .multi-select-container {
+            position: relative;
+        }
+
+        .multi-select {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            min-height: 45px;
+            padding: 8px 12px;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .multi-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .multi-select-tag {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .multi-select-tag .remove {
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .multi-select .placeholder {
+            color: #999;
+        }
+
+        .multi-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .multi-select-option {
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .multi-select-option:hover {
+            background: #f8f9ff;
+        }
+
+        .multi-select-option.selected {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
         }
 
         .btn {
@@ -164,205 +236,8 @@
             box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
         }
 
-        .quality-report {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-
-        .quality-summary {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .quality-stat {
-            background: linear-gradient(135deg, #f8f9ff, #e8edff);
-            padding: 15px;
-            border-radius: 12px;
-            text-align: center;
-            border-left: 4px solid #667eea;
-        }
-
-        .quality-stat.critical {
-            border-left-color: #dc3545;
-            background: linear-gradient(135deg, #ffeaa7, #fab1a0);
-        }
-
-        .quality-stat.warning {
-            border-left-color: #ffc107;
-            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
-        }
-
-        .quality-stat.good {
-            border-left-color: #28a745;
-            background: linear-gradient(135deg, #d4edda, #c3e6cb);
-        }
-
-        .quality-stat h5 {
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-        }
-
-        .quality-stat .value {
-            font-size: 1.8rem;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .column-report {
-            margin-bottom: 25px;
-            border: 1px solid #e0e0e0;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .column-header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 15px 20px;
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .column-content {
-            padding: 20px;
-        }
-
-        .issue-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 15px;
-        }
-
-        .issue-card {
-            border-radius: 10px;
-            padding: 15px;
-            border-left: 4px solid;
-        }
-
-        .issue-card.critical {
-            background: #f8d7da;
-            border-left-color: #dc3545;
-            color: #721c24;
-        }
-
-        .issue-card.warning {
-            background: #fff3cd;
-            border-left-color: #ffc107;
-            color: #856404;
-        }
-
-        .issue-card.info {
-            background: #d1ecf1;
-            border-left-color: #17a2b8;
-            color: #0c5460;
-        }
-
-        .issue-card.success {
-            background: #d4edda;
-            border-left-color: #28a745;
-            color: #155724;
-        }
-
-        .issue-title {
-            font-weight: 600;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .issue-description {
-            font-size: 0.9rem;
-            margin-bottom: 10px;
-        }
-
-        .issue-details {
-            font-size: 0.85rem;
-            background: rgba(255,255,255,0.5);
-            padding: 8px;
-            border-radius: 6px;
-        }
-
-        .samples-list {
-            max-height: 120px;
-            overflow-y: auto;
-            background: rgba(255,255,255,0.7);
-            padding: 10px;
-            border-radius: 6px;
-            margin-top: 8px;
-        }
-
-        .sample-item {
-            padding: 4px 8px;
-            margin: 2px 0;
-            background: white;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 0.8rem;
-        }
-
-        .fix-button {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            margin-top: 10px;
-            transition: all 0.3s ease;
-        }
-
-        .fix-button:hover {
-            background: #218838;
-            transform: translateY(-1px);
-        }
-
-        .overall-score {
-            text-align: center;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border-radius: 15px;
-            margin-bottom: 25px;
-        }
-
-        .score-circle {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: white;
-            color: #333;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 15px;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .progress-indicator {
-            width: 100%;
-            height: 8px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: #28a745;
-            border-radius: 4px;
-            transition: width 0.5s ease;
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
         }
 
         .data-table {
@@ -370,7 +245,7 @@
             border-radius: 15px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             margin-top: 20px;
-            max-height: 400px;
+            max-height: 600px;
         }
 
         table {
@@ -396,11 +271,48 @@
             z-index: 10;
         }
 
+        .pivot-header {
+            background: linear-gradient(135deg, #28a745, #20c997) !important;
+        }
+
+        .pivot-subheader {
+            background: linear-gradient(135deg, #17a2b8, #138496) !important;
+        }
+
+        .pivot-row-header {
+            background: linear-gradient(135deg, #ffc107, #e0a800) !important;
+            color: #333 !important;
+            font-weight: bold;
+        }
+
+        .pivot-total {
+            background: linear-gradient(135deg, #6f42c1, #5a32a3) !important;
+            color: white !important;
+            font-weight: bold;
+        }
+
+        .pivot-grand-total {
+            background: linear-gradient(135deg, #28a745, #20c997) !important;
+            color: white !important;
+            font-weight: bold;
+        }
+
+        .pivot-col-total {
+            background: linear-gradient(135deg, #fd7e14, #e55a00) !important;
+            color: white !important;
+            font-weight: bold;
+        }
+
+        .pivot-value {
+            text-align: right;
+            font-weight: 500;
+        }
+
         tr:hover {
             background: #f8f9ff;
         }
 
-        .stats-grid {
+        .stats-summary {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
@@ -426,6 +338,19 @@
             color: #333;
         }
 
+        .export-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
         .error {
             background: linear-gradient(135deg, #dc3545, #c82333);
             color: white;
@@ -442,16 +367,12 @@
             margin: 10px 0;
         }
 
-        .info {
-            background: linear-gradient(135deg, #17a2b8, #138496);
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 10px 0;
-        }
-
         @media (max-width: 768px) {
             .controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .export-controls {
                 flex-direction: column;
             }
         }
@@ -460,14 +381,14 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔍 Complete Data Quality Assessment Tool</h1>
-            <p>Upload your data files and get a comprehensive quality analysis with detailed column-by-column reporting</p>
+            <h1>📊 Multi-Column Pivot Table Tool</h1>
+            <p>Upload Excel files and create sophisticated pivot tables with multiple row and column groupings</p>
         </div>
 
         <div class="upload-section">
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📁</div>
-                <h3>Drop your Excel or CSV file here or click to browse</h3>
+                <h3>Drop your Excel file here or click to browse</h3>
                 <p>Supports .xlsx, .xls, .csv files up to 50MB</p>
                 <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls,.csv">
                 <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
@@ -477,27 +398,100 @@
             <div id="fileInfo" class="file-info" style="display: none;"></div>
         </div>
 
-        <div class="main-section">
-            <h2>📊 Data Quality Assessment</h2>
+        <div class="pivot-section">
+            <h2>🔄 Multi-Column Pivot Table Configuration</h2>
+            
             <div class="controls">
                 <div class="control-group">
-                    <label for="dataSheet">Select Sheet:</label>
-                    <select id="dataSheet" onchange="updateOverview()"></select>
+                    <label for="pivotSheet">Select Sheet:</label>
+                    <select id="pivotSheet" onchange="updatePivotColumns()"></select>
                 </div>
+
+                <div class="control-group">
+                    <label>Row Groups (Multi-select):</label>
+                    <div class="multi-select-container">
+                        <div class="multi-select" id="rowGroups" onclick="toggleDropdown('rowGroups')">
+                            <span class="placeholder">Select columns for row grouping...</span>
+                        </div>
+                        <div class="multi-select-dropdown" id="rowGroupsDropdown"></div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Column Groups (Multi-select):</label>
+                    <div class="multi-select-container">
+                        <div class="multi-select" id="colGroups" onclick="toggleDropdown('colGroups')">
+                            <span class="placeholder">Select columns for column grouping...</span>
+                        </div>
+                        <div class="multi-select-dropdown" id="colGroupsDropdown"></div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Value Columns (Multi-select):</label>
+                    <div class="multi-select-container">
+                        <div class="multi-select" id="valueColumns" onclick="toggleDropdown('valueColumns')">
+                            <span class="placeholder">Select columns for values...</span>
+                        </div>
+                        <div class="multi-select-dropdown" id="valueColumnsDropdown"></div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="pivotAggregation">Aggregation Function:</label>
+                    <select id="pivotAggregation">
+                        <option value="sum">Sum</option>
+                        <option value="average">Average</option>
+                        <option value="count">Count</option>
+                        <option value="min">Minimum</option>
+                        <option value="max">Maximum</option>
+                        <option value="median">Median</option>
+                        <option value="stddev">Standard Deviation</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Display Options:</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                            <input type="checkbox" id="showTotals" checked>
+                            Show Row/Column Totals
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                            <input type="checkbox" id="showGrandTotal" checked>
+                            Show Grand Total
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                            <input type="checkbox" id="showPercentages">
+                            Show Percentages
+                        </label>
+                    </div>
+                </div>
+
                 <div class="control-group" style="display: flex; align-items: end;">
-                    <button class="btn" onclick="runComprehensiveDataCheck()">🔍 Run Complete Data Quality Check</button>
+                    <button class="btn" onclick="generateMultiPivotTable()">🔄 Generate Pivot Table</button>
                 </div>
             </div>
+
+            <div id="pivotStats" class="stats-summary" style="display: none;"></div>
+            <div id="pivotResults"></div>
             
-            <div id="overviewStats" class="stats-grid"></div>
-            <div id="dataQualityReport"></div>
+            <div class="export-controls" id="exportControls" style="display: none;">
+                <button class="btn btn-secondary" onclick="exportPivotToExcel()">📊 Export to Excel</button>
+                <button class="btn btn-secondary" onclick="exportPivotToCSV()">📄 Export to CSV</button>
+                <button class="btn btn-secondary" onclick="copyPivotToClipboard()">📋 Copy to Clipboard</button>
+                <button class="btn btn-secondary" onclick="exportPivotToPNG()">🖼️ Save as PNG</button>
+            </div>
         </div>
     </div>
 
     <script>
         // Global variables
         let workbookData = {};
-        let processedData = {};
+        let currentPivotData = null;
+        let selectedRowGroups = [];
+        let selectedColGroups = [];
+        let selectedValueColumns = [];
 
         // File upload handling
         const uploadArea = document.getElementById('uploadArea');
@@ -550,7 +544,7 @@
         }
 
         function processCSVFile(file) {
-            fileInfo.innerHTML = '<div class="info">Processing CSV file...</div>';
+            fileInfo.innerHTML = '<div class="loading">Processing CSV file...</div>';
             fileInfo.style.display = 'block';
 
             const reader = new FileReader();
@@ -561,7 +555,7 @@
                     Papa.parse(csvText, {
                         header: false,
                         skipEmptyLines: true,
-                        dynamicTyping: false,
+                        dynamicTyping: true,
                         complete: function(results) {
                             try {
                                 if (results.errors.length > 0) {
@@ -574,11 +568,10 @@
                                     return;
                                 }
 
+                                // Use filename without extension as sheet name
                                 const sheetName = file.name.replace(/\.csv$/i, '');
                                 workbookData = {};
-                                processedData = {};
                                 workbookData[sheetName] = data;
-                                processedData[sheetName] = JSON.parse(JSON.stringify(data));
 
                                 const totalRows = data.length;
                                 const totalColumns = data.length > 0 ? Math.max(...data.map(row => row.length)) : 0;
@@ -592,7 +585,6 @@
                                 `;
 
                                 populateSheetDropdowns();
-                                updateOverview();
                             } catch (error) {
                                 showError('Error processing CSV data: ' + error.message);
                             }
@@ -606,13 +598,17 @@
                 }
             };
 
+            reader.onerror = function() {
+                showError('Error reading the file');
+            };
+
             reader.readAsText(file);
         }
 
         function processExcelFile(file) {
             const reader = new FileReader();
             
-            fileInfo.innerHTML = '<div class="info">Processing Excel file...</div>';
+            fileInfo.innerHTML = '<div class="loading">Processing file...</div>';
             fileInfo.style.display = 'block';
 
             reader.onload = function(e) {
@@ -621,19 +617,17 @@
                     const workbook = XLSX.read(data, { type: 'array' });
                     
                     workbookData = {};
-                    processedData = {};
                     let totalRows = 0;
                     let totalColumns = 0;
 
                     workbook.SheetNames.forEach(sheetName => {
                         const worksheet = workbook.Sheets[sheetName];
-                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
                         
                         const filteredData = jsonData.filter(row => row.some(cell => cell !== undefined && cell !== ''));
                         
                         if (filteredData.length > 0) {
                             workbookData[sheetName] = filteredData;
-                            processedData[sheetName] = JSON.parse(JSON.stringify(filteredData));
                             totalRows += filteredData.length;
                             totalColumns = Math.max(totalColumns, Math.max(...filteredData.map(row => row.length)));
                         }
@@ -641,14 +635,13 @@
 
                     fileInfo.innerHTML = `
                         <div class="success">
-                            <strong>✅ Excel file loaded successfully!</strong><br>
+                            <strong>✅ File loaded successfully!</strong><br>
                             📁 ${file.name} (${formatFileSize(file.size)})<br>
                             📄 ${Object.keys(workbookData).length} sheets, ${totalRows} rows, ${totalColumns} columns
                         </div>
                     `;
 
                     populateSheetDropdowns();
-                    updateOverview();
                     
                 } catch (error) {
                     showError('Error processing file: ' + error.message);
@@ -660,7 +653,7 @@
 
         function populateSheetDropdowns() {
             const sheetNames = Object.keys(workbookData);
-            const select = document.getElementById('dataSheet');
+            const select = document.getElementById('pivotSheet');
             
             select.innerHTML = '';
             sheetNames.forEach(name => {
@@ -669,601 +662,663 @@
                 option.textContent = name;
                 select.appendChild(option);
             });
+
+            if (sheetNames.length > 0) {
+                updatePivotColumns();
+            }
         }
 
-        function updateOverview() {
-            const sheetName = document.getElementById('dataSheet').value;
+        function updatePivotColumns() {
+            const sheetName = document.getElementById('pivotSheet').value;
             if (!sheetName || !workbookData[sheetName]) return;
 
+            const headers = workbookData[sheetName][0] || [];
+            
+            // Clear existing selections
+            selectedRowGroups = [];
+            selectedColGroups = [];
+            selectedValueColumns = [];
+            
+            // Update dropdowns
+            updateMultiSelectDropdowns('rowGroups', headers);
+            updateMultiSelectDropdowns('colGroups', headers);
+            updateMultiSelectDropdowns('valueColumns', headers);
+
+            updateMultiSelectDisplay('rowGroups');
+            updateMultiSelectDisplay('colGroups');
+            updateMultiSelectDisplay('valueColumns');
+        }
+
+        function updateMultiSelectDropdowns(containerId, options) {
+            const dropdown = document.getElementById(containerId + 'Dropdown');
+            dropdown.innerHTML = '';
+            
+            options.forEach(option => {
+                const div = document.createElement('div');
+                div.className = 'multi-select-option';
+                div.textContent = option;
+                div.onclick = () => toggleSelection(containerId, option);
+                dropdown.appendChild(div);
+            });
+        }
+
+        function toggleDropdown(containerId) {
+            const dropdown = document.getElementById(containerId + 'Dropdown');
+            const isVisible = dropdown.style.display === 'block';
+            
+            // Close all dropdowns
+            document.querySelectorAll('.multi-select-dropdown').forEach(d => d.style.display = 'none');
+            
+            if (!isVisible) {
+                dropdown.style.display = 'block';
+                updateDropdownSelections(containerId);
+            }
+        }
+
+        function updateDropdownSelections(containerId) {
+            const dropdown = document.getElementById(containerId + 'Dropdown');
+            let selectedItems;
+            
+            if (containerId === 'rowGroups') {
+                selectedItems = selectedRowGroups;
+            } else if (containerId === 'colGroups') {
+                selectedItems = selectedColGroups;
+            } else if (containerId === 'valueColumns') {
+                selectedItems = selectedValueColumns;
+            }
+            
+            dropdown.querySelectorAll('.multi-select-option').forEach(option => {
+                if (selectedItems.includes(option.textContent)) {
+                    option.classList.add('selected');
+                } else {
+                    option.classList.remove('selected');
+                }
+            });
+        }
+
+        function toggleSelection(containerId, option) {
+            let selectedItems;
+            if (containerId === 'rowGroups') {
+                selectedItems = selectedRowGroups;
+            } else if (containerId === 'colGroups') {
+                selectedItems = selectedColGroups;
+            } else if (containerId === 'valueColumns') {
+                selectedItems = selectedValueColumns;
+            }
+            
+            const index = selectedItems.indexOf(option);
+            
+            if (index > -1) {
+                selectedItems.splice(index, 1);
+            } else {
+                selectedItems.push(option);
+            }
+            
+            updateMultiSelectDisplay(containerId);
+            updateDropdownSelections(containerId);
+        }
+
+        function updateMultiSelectDisplay(containerId) {
+            const container = document.getElementById(containerId);
+            let selectedItems;
+            let placeholderText;
+            
+            if (containerId === 'rowGroups') {
+                selectedItems = selectedRowGroups;
+                placeholderText = 'Select columns for row grouping...';
+            } else if (containerId === 'colGroups') {
+                selectedItems = selectedColGroups;
+                placeholderText = 'Select columns for column grouping...';
+            } else if (containerId === 'valueColumns') {
+                selectedItems = selectedValueColumns;
+                placeholderText = 'Select columns for values...';
+            }
+            
+            container.innerHTML = '';
+            
+            if (selectedItems.length === 0) {
+                const placeholder = document.createElement('span');
+                placeholder.className = 'placeholder';
+                placeholder.textContent = placeholderText;
+                placeholder.style.color = '#999';
+                container.appendChild(placeholder);
+            } else {
+                selectedItems.forEach(item => {
+                    const tag = document.createElement('div');
+                    tag.className = 'multi-select-tag';
+                    tag.innerHTML = `
+                        ${item}
+                        <span class="remove" onclick="event.stopPropagation(); removeSelection('${containerId}', '${item}')">&times;</span>
+                    `;
+                    container.appendChild(tag);
+                });
+            }
+        }
+
+        function removeSelection(containerId, item) {
+            let selectedItems;
+            if (containerId === 'rowGroups') {
+                selectedItems = selectedRowGroups;
+            } else if (containerId === 'colGroups') {
+                selectedItems = selectedColGroups;
+            } else if (containerId === 'valueColumns') {
+                selectedItems = selectedValueColumns;
+            }
+            
+            const index = selectedItems.indexOf(item);
+            if (index > -1) {
+                selectedItems.splice(index, 1);
+                updateMultiSelectDisplay(containerId);
+                updateDropdownSelections(containerId);
+            }
+        }
+
+        function generateMultiPivotTable() {
+            const sheetName = document.getElementById('pivotSheet').value;
+            const aggregation = document.getElementById('pivotAggregation').value;
+            const showTotals = document.getElementById('showTotals').checked;
+            const showGrandTotal = document.getElementById('showGrandTotal').checked;
+            const showPercentages = document.getElementById('showPercentages').checked;
+
+            if (!sheetName || !workbookData[sheetName]) {
+                showError('Please select a sheet');
+                return;
+            }
+
+            if (selectedValueColumns.length === 0) {
+                showError('Please select at least one value column');
+                return;
+            }
+
+            if (selectedRowGroups.length === 0 && selectedColGroups.length === 0) {
+                showError('Please select at least one row or column group');
+                return;
+            }
+
             const data = workbookData[sheetName];
-            const headers = data[0] || [];
+            const headers = data[0];
             const rows = data.slice(1);
 
-            // Update stats
-            const statsHtml = `
+            // Get column indices
+            const valueIndices = selectedValueColumns.map(col => headers.indexOf(col));
+            const rowGroupIndices = selectedRowGroups.map(col => headers.indexOf(col));
+            const colGroupIndices = selectedColGroups.map(col => headers.indexOf(col));
+
+            if (valueIndices.some(idx => idx === -1)) {
+                showError('One or more value columns not found');
+                return;
+            }
+
+            // Filter valid rows
+            const validRows = rows.filter(row => {
+                return rowGroupIndices.every(idx => row[idx] !== undefined) &&
+                       colGroupIndices.every(idx => row[idx] !== undefined) &&
+                       valueIndices.some(idx => row[idx] !== undefined);
+            });
+
+            // Create pivot table with multiple values
+            const pivotTable = createMultiValuePivotTable(
+                validRows, rowGroupIndices, colGroupIndices, valueIndices, 
+                aggregation, showTotals, showGrandTotal, showPercentages
+            );
+
+            currentPivotData = pivotTable;
+            displayMultiValuePivotTable(pivotTable, selectedRowGroups, selectedColGroups, selectedValueColumns, aggregation);
+            showPivotStats(pivotTable, validRows.length);
+            
+            document.getElementById('exportControls').style.display = 'flex';
+        }
+
+
+
+        function createMultiValuePivotTable(rows, rowGroupIndices, colGroupIndices, valueIndices, aggregation, showTotals, showGrandTotal, showPercentages) {
+            // Group data by row and column combinations
+            const grouped = {};
+            const rowTotals = {};
+            const colTotals = {};
+            const grandTotals = {};
+            
+            // Initialize grand totals for each value column
+            valueIndices.forEach((_, idx) => {
+                grandTotals[idx] = 0;
+            });
+
+            rows.forEach(row => {
+                // Create row key
+                const rowKey = rowGroupIndices.map(idx => row[idx] || '').join('|');
+                
+                // Create column key (combine regular columns with value column names)
+                const baseColKey = colGroupIndices.length > 0 ? 
+                    colGroupIndices.map(idx => row[idx] || '').join('|') : '';
+
+                // Initialize if needed
+                if (!grouped[rowKey]) grouped[rowKey] = {};
+                if (!rowTotals[rowKey]) rowTotals[rowKey] = {};
+                
+                valueIndices.forEach((valueIdx, valuePosition) => {
+                    const colKey = colGroupIndices.length > 0 ? 
+                        `${baseColKey}|${selectedValueColumns[valuePosition]}` : 
+                        selectedValueColumns[valuePosition];
+                    
+                    if (!grouped[rowKey][colKey]) grouped[rowKey][colKey] = [];
+                    if (!colTotals[colKey]) colTotals[colKey] = [];
+                    if (!rowTotals[rowKey][valuePosition]) rowTotals[rowKey][valuePosition] = [];
+
+                    const value = parseFloat(row[valueIdx]);
+                    if (!isNaN(value)) {
+                        grouped[rowKey][colKey].push(value);
+                        rowTotals[rowKey][valuePosition].push(value);
+                        colTotals[colKey].push(value);
+                        grandTotals[valuePosition] += value;
+                    }
+                });
+            });
+
+            // Calculate aggregated values
+            const pivotData = {};
+            Object.keys(grouped).forEach(rowKey => {
+                pivotData[rowKey] = {};
+                Object.keys(grouped[rowKey]).forEach(colKey => {
+                    const values = grouped[rowKey][colKey];
+                    pivotData[rowKey][colKey] = calculateAggregation(values, aggregation);
+                });
+            });
+
+            // Calculate totals
+            const calculatedRowTotals = {};
+            const calculatedColTotals = {};
+            
+            if (showTotals) {
+                Object.keys(rowTotals).forEach(rowKey => {
+                    calculatedRowTotals[rowKey] = {};
+                    Object.keys(rowTotals[rowKey]).forEach(valuePosition => {
+                        calculatedRowTotals[rowKey][valuePosition] = calculateAggregation(rowTotals[rowKey][valuePosition], aggregation);
+                    });
+                });
+                
+                Object.keys(colTotals).forEach(colKey => {
+                    calculatedColTotals[colKey] = calculateAggregation(colTotals[colKey], aggregation);
+                });
+            }
+
+            // Calculate grand totals
+            const calculatedGrandTotals = {};
+            if (showGrandTotal) {
+                valueIndices.forEach((_, idx) => {
+                    calculatedGrandTotals[idx] = aggregation === 'count' ? 
+                        Object.values(grouped).reduce((sum, row) => {
+                            return sum + Object.values(row).reduce((rowSum, values) => rowSum + values.length, 0);
+                        }, 0) : 
+                        calculateAggregation([grandTotals[idx]], aggregation === 'sum' ? 'sum' : aggregation);
+                });
+            }
+
+            // Generate all possible column keys
+            const allColKeys = [...new Set(Object.values(pivotData).flatMap(obj => Object.keys(obj)))].sort();
+
+            return {
+                data: pivotData,
+                rowKeys: Object.keys(pivotData).sort(),
+                colKeys: allColKeys,
+                rowTotals: calculatedRowTotals,
+                colTotals: calculatedColTotals,
+                grandTotals: calculatedGrandTotals,
+                showTotals,
+                showGrandTotal,
+                showPercentages,
+                valueColumns: selectedValueColumns
+            };
+        }
+
+        function calculateAggregation(values, aggregation) {
+            if (values.length === 0) return 0;
+            
+            switch (aggregation) {
+                case 'sum':
+                    return values.reduce((a, b) => a + b, 0);
+                case 'average':
+                    return values.reduce((a, b) => a + b, 0) / values.length;
+                case 'count':
+                    return values.length;
+                case 'min':
+                    return Math.min(...values);
+                case 'max':
+                    return Math.max(...values);
+                case 'median':
+                    const sorted = values.slice().sort((a, b) => a - b);
+                    const mid = Math.floor(sorted.length / 2);
+                    return sorted.length % 2 === 0 ? 
+                        (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+                case 'stddev':
+                    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+                    const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+                    return Math.sqrt(variance);
+                default:
+                    return values.reduce((a, b) => a + b, 0);
+            }
+        }
+
+        function displayMultiValuePivotTable(pivotTable, rowGroups, colGroups, valueColumns, aggregation) {
+            const { data, rowKeys, colKeys, colTotals, grandTotals, showTotals, showGrandTotal, showPercentages } = pivotTable;
+            
+            let html = '<div class="data-table"><table>';
+            
+            // Header rows
+            if (colGroups.length > 0 || valueColumns.length > 1) {
+                // Multi-level column headers
+                html += '<thead>';
+                
+                // Top header with column group names
+                html += '<tr>';
+                html += `<th colspan="${rowGroups.length}" class="pivot-header">Rows</th>`;
+                
+                colKeys.forEach(colKey => {
+                    html += `<th class="pivot-header">${colKey}</th>`;
+                });
+                
+                html += '</tr>';
+                
+                // Sub-header with aggregation function
+                html += '<tr>';
+                rowGroups.forEach(group => {
+                    html += `<th class="pivot-subheader">${group}</th>`;
+                });
+                
+                colKeys.forEach(() => {
+                    html += `<th class="pivot-subheader">${aggregation.charAt(0).toUpperCase() + aggregation.slice(1)}</th>`;
+                });
+                
+                html += '</tr>';
+                html += '</thead>';
+            } else {
+                // Simple header for single value column
+                html += '<thead><tr>';
+                rowGroups.forEach(group => {
+                    html += `<th class="pivot-header">${group}</th>`;
+                });
+                valueColumns.forEach(valueCol => {
+                    html += `<th class="pivot-header">${aggregation.charAt(0).toUpperCase() + aggregation.slice(1)} of ${valueCol}</th>`;
+                });
+                html += '</tr></thead>';
+            }
+            
+            // Data rows
+            html += '<tbody>';
+            rowKeys.forEach(rowKey => {
+                html += '<tr>';
+                
+                // Row headers
+                const rowValues = rowKey.split('|');
+                rowValues.forEach(value => {
+                    html += `<td class="pivot-row-header">${value}</td>`;
+                });
+                
+                // Data cells
+                colKeys.forEach(colKey => {
+                    const cellValue = data[rowKey] && data[rowKey][colKey] !== undefined ? 
+                        data[rowKey][colKey] : 0;
+                    
+                    let displayValue = formatNumber(cellValue);
+                    
+                    if (showPercentages && grandTotals) {
+                        // Find which value column this represents for percentage calculation
+                        const valueColIndex = valueColumns.findIndex(col => colKey.includes(col));
+                        const grandTotal = grandTotals[valueColIndex] || 0;
+                        if (grandTotal !== 0) {
+                            const percentage = (cellValue / grandTotal * 100).toFixed(1);
+                            displayValue = `${displayValue} (${percentage}%)`;
+                        }
+                    }
+                    
+                    html += `<td class="pivot-value">${displayValue}</td>`;
+                });
+                
+                html += '</tr>';
+            });
+            
+            // Column totals row
+            if (showTotals && (colGroups.length > 0 || valueColumns.length > 1)) {
+                html += '<tr>';
+                
+                // Total label
+                for (let i = 0; i < rowGroups.length - 1; i++) {
+                    html += '<td class="pivot-col-total"></td>';
+                }
+                html += '<td class="pivot-col-total"><strong>Column Total</strong></td>';
+                
+                // Column totals
+                colKeys.forEach(colKey => {
+                    const total = colTotals[colKey] || 0;
+                    let totalDisplay = formatNumber(total);
+                    if (showPercentages && grandTotals) {
+                        const valueColIndex = valueColumns.findIndex(col => colKey.includes(col));
+                        const grandTotal = grandTotals[valueColIndex] || 0;
+                        if (grandTotal !== 0) {
+                            const percentage = (total / grandTotal * 100).toFixed(1);
+                            totalDisplay = `${totalDisplay} (${percentage}%)`;
+                        }
+                    }
+                    html += `<td class="pivot-col-total">${totalDisplay}</td>`;
+                });
+                
+                html += '</tr>';
+            }
+            
+            // Grand total row at the bottom
+            if (showGrandTotal && grandTotals) {
+                html += '<tr>';
+                
+                // Grand total label
+                for (let i = 0; i < rowGroups.length - 1; i++) {
+                    html += '<td class="pivot-grand-total"></td>';
+                }
+                html += '<td class="pivot-grand-total"><strong>Grand Total</strong></td>';
+                
+                // Grand total spanning across data columns
+                if (valueColumns.length === 1) {
+                    let grandDisplay = formatNumber(grandTotals[0]);
+                    if (showPercentages) {
+                        grandDisplay = `${grandDisplay} (100.0%)`;
+                    }
+                    html += `<td colspan="${colKeys.length}" class="pivot-grand-total" style="text-align: right;"><strong>${grandDisplay}</strong></td>`;
+                } else {
+                    // Multiple value columns - show grand total for each
+                    colKeys.forEach(colKey => {
+                        const valueColIndex = valueColumns.findIndex(col => colKey.includes(col));
+                        let grandDisplay = formatNumber(grandTotals[valueColIndex] || 0);
+                        if (showPercentages) {
+                            grandDisplay = `${grandDisplay} (100.0%)`;
+                        }
+                        html += `<td class="pivot-grand-total" style="text-align: right;"><strong>${grandDisplay}</strong></td>`;
+                    });
+                }
+                
+                html += '</tr>';
+            }
+            
+            html += '</tbody></table></div>';
+            
+            document.getElementById('pivotResults').innerHTML = html;
+        }
+
+        function showPivotStats(pivotTable, totalRows) {
+            const { rowKeys, colKeys } = pivotTable;
+            
+            const html = `
                 <div class="stat-card">
                     <h4>📊 Total Rows</h4>
-                    <div class="stat-value">${rows.length.toLocaleString()}</div>
+                    <div class="stat-value">${rowKeys.length.toLocaleString()}</div>
                 </div>
                 <div class="stat-card">
                     <h4>📋 Total Columns</h4>
-                    <div class="stat-value">${headers.length}</div>
+                    <div class="stat-value">${colKeys.length.toLocaleString()}</div>
                 </div>
                 <div class="stat-card">
-                    <h4>📝 Text Columns</h4>
-                    <div class="stat-value">${countColumnsByType(data, 'text')}</div>
+                    <h4>📄 Data Points</h4>
+                    <div class="stat-value">${(rowKeys.length * colKeys.length).toLocaleString()}</div>
                 </div>
                 <div class="stat-card">
-                    <h4>🔢 Numeric Columns</h4>
-                    <div class="stat-value">${countColumnsByType(data, 'numeric')}</div>
+                    <h4>📈 Source Rows</h4>
+                    <div class="stat-value">${totalRows.toLocaleString()}</div>
                 </div>
             `;
-            document.getElementById('overviewStats').innerHTML = statsHtml;
-        }
-
-
-
-        function countColumnsByType(data, type) {
-            if (data.length < 2) return 0;
             
-            const headers = data[0];
-            const rows = data.slice(1);
-            let count = 0;
-
-            headers.forEach((header, index) => {
-                const columnData = rows.map(row => row[index]).filter(val => val !== undefined && val !== '');
-                if (columnData.length > 0) {
-                    const analysis = analyzeDataType(columnData);
-                    if ((type === 'numeric' && analysis.type === 'Numeric') || 
-                        (type === 'text' && analysis.type === 'Text')) {
-                        count++;
-                    }
-                }
-            });
-
-            return count;
+            document.getElementById('pivotStats').innerHTML = html;
+            document.getElementById('pivotStats').style.display = 'grid';
         }
 
-        // Comprehensive Data Quality Check
-        function runComprehensiveDataCheck() {
-            const sheetName = document.getElementById('dataSheet').value;
-            if (!sheetName || !workbookData[sheetName]) {
-                showError('Please select a sheet to analyze');
+        function formatNumber(value) {
+            if (typeof value !== 'number') return value;
+            return value % 1 === 0 ? value.toLocaleString() : value.toFixed(2);
+        }
+
+        function exportPivotToPNG() {
+            if (!currentPivotData) {
+                showError('Please generate a pivot table first');
                 return;
             }
 
-            showMessage('Running comprehensive data quality analysis...', 'info');
-
-            const data = workbookData[sheetName];
-            if (data.length < 2) {
-                showError('Sheet must have at least 2 rows (header + data)');
+            const pivotElement = document.querySelector('#pivotResults .data-table');
+            
+            if (!pivotElement) {
+                showError('No pivot table found to export');
                 return;
             }
 
-            const headers = data[0];
-            const rows = data.slice(1);
-            
-            const qualityReport = {
-                sheet: sheetName,
-                totalRows: rows.length,
-                totalColumns: headers.length,
-                issues: [],
-                columnReports: {},
-                overallScore: 0,
-                criticalIssues: 0,
-                warningIssues: 0,
-                infoIssues: 0
+            // Show loading message
+            showMessage('Generating PNG image...', 'info');
+
+            // Temporarily remove max-height and overflow to capture full table
+            const originalStyle = {
+                maxHeight: pivotElement.style.maxHeight,
+                overflow: pivotElement.style.overflow
             };
+            
+            pivotElement.style.maxHeight = 'none';
+            pivotElement.style.overflow = 'visible';
 
-            headers.forEach((header, columnIndex) => {
-                const columnData = rows.map(row => row[columnIndex]);
-                const columnReport = analyzeColumnQuality(header, columnData, columnIndex, rows.length);
-                qualityReport.columnReports[header] = columnReport;
+            // Use html2canvas to capture the pivot table
+            html2canvas(pivotElement, {
+                backgroundColor: '#ffffff',
+                scale: 2, // Higher quality
+                useCORS: true,
+                allowTaint: true,
+                scrollX: 0,
+                scrollY: 0,
+                width: pivotElement.scrollWidth,
+                height: pivotElement.scrollHeight,
+                windowWidth: pivotElement.scrollWidth,
+                windowHeight: pivotElement.scrollHeight
+            }).then(function(canvas) {
+                // Restore original styles
+                pivotElement.style.maxHeight = originalStyle.maxHeight;
+                pivotElement.style.overflow = originalStyle.overflow;
                 
-                columnReport.issues.forEach(issue => {
-                    switch(issue.severity) {
-                        case 'critical':
-                            qualityReport.criticalIssues++;
-                            break;
-                        case 'warning':
-                            qualityReport.warningIssues++;
-                            break;
-                        case 'info':
-                            qualityReport.infoIssues++;
-                            break;
-                    }
-                });
+                // Create download link
+                const link = document.createElement('a');
+                link.download = 'pivot_table_export.png';
+                link.href = canvas.toDataURL('image/png');
+                
+                // Trigger download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showMessage('PNG exported successfully!', 'success');
+            }).catch(function(error) {
+                // Restore original styles on error
+                pivotElement.style.maxHeight = originalStyle.maxHeight;
+                pivotElement.style.overflow = originalStyle.overflow;
+                
+                console.error('Error generating PNG:', error);
+                showError('Failed to generate PNG. Please try again.');
             });
-
-            const totalPossibleIssues = headers.length * 10;
-            const totalIssues = qualityReport.criticalIssues * 3 + qualityReport.warningIssues * 2 + qualityReport.infoIssues;
-            qualityReport.overallScore = Math.max(0, Math.round(100 - (totalIssues / totalPossibleIssues) * 100));
-
-            displayQualityReport(qualityReport);
-            showMessage('Data quality analysis completed!', 'success');
         }
 
-        function analyzeColumnQuality(columnName, columnData, columnIndex, totalRows) {
-            const report = {
-                name: columnName,
-                index: columnIndex,
-                totalValues: columnData.length,
-                nonEmptyValues: columnData.filter(v => v !== undefined && v !== '' && v !== null).length,
-                uniqueValues: [...new Set(columnData.filter(v => v !== undefined && v !== '' && v !== null))].length,
-                dataType: 'Unknown',
-                issues: []
-            };
-
-            const nonEmptyData = columnData.filter(v => v !== undefined && v !== '' && v !== null);
+        // Export functions
+        function exportPivotToExcel() {
+            if (!currentPivotData) {
+                showError('Please generate a pivot table first');
+                return;
+            }
             
-            // 1. Check for unnamed/problematic column names
-            if (!columnName || 
-                columnName.toString().includes('Unnamed') || 
-                columnName.toString().includes('Column') || 
-                columnName.toString().trim() === '' ||
-                columnName.toString().startsWith('__EMPTY')) {
-                report.issues.push({
-                    type: 'Unnamed Column',
-                    severity: 'critical',
-                    description: 'Column has no proper name or contains generic naming',
-                    count: 1,
-                    suggestion: 'Rename column with descriptive name or remove',
-                    canFix: true,
-                    fixAction: 'removeUnnamedColumns'
-                });
-            }
-
-            // 2. Check for missing values
-            const missingCount = totalRows - report.nonEmptyValues;
-            if (missingCount > 0) {
-                const missingPercentage = (missingCount / totalRows) * 100;
-                const severity = missingPercentage > 50 ? 'critical' : missingPercentage > 20 ? 'warning' : 'info';
-                report.issues.push({
-                    type: 'Missing Values',
-                    severity: severity,
-                    description: `${missingCount} missing values (${missingPercentage.toFixed(1)}%)`,
-                    count: missingCount,
-                    suggestion: missingPercentage > 50 ? 'Consider removing column or imputing values' : 'Review missing data pattern',
-                    canFix: false
-                });
-            }
-
-            if (nonEmptyData.length === 0) {
-                report.issues.push({
-                    type: 'Empty Column',
-                    severity: 'critical',
-                    description: 'Column contains no data',
-                    count: totalRows,
-                    suggestion: 'Remove empty column',
-                    canFix: true,
-                    fixAction: 'removeUnnamedColumns'
-                });
-                return report;
-            }
-
-            // 3. Analyze data type and consistency
-            const typeAnalysis = analyzeDataType(nonEmptyData);
-            report.dataType = typeAnalysis.type;
-
-            if (typeAnalysis.confidence < 90) {
-                report.issues.push({
-                    type: 'Inconsistent Data Types',
-                    severity: 'warning',
-                    description: `Mixed data types detected (${typeAnalysis.confidence}% confidence)`,
-                    count: Math.round(nonEmptyData.length * (100 - typeAnalysis.confidence) / 100),
-                    suggestion: `Consider converting to ${typeAnalysis.type}`,
-                    canFix: typeAnalysis.convertible,
-                    fixAction: 'convertDataType',
-                    samples: typeAnalysis.inconsistentSamples || []
-                });
-            }
-
-            // 4. Check for leading/trailing spaces
-            const spacesCount = nonEmptyData.filter(val => 
-                typeof val === 'string' && val !== val.trim()
-            ).length;
-            
-            if (spacesCount > 0) {
-                report.issues.push({
-                    type: 'Leading/Trailing Spaces',
-                    severity: 'warning',
-                    description: `${spacesCount} values have unnecessary spaces`,
-                    count: spacesCount,
-                    suggestion: 'Remove leading and trailing spaces',
-                    canFix: true,
-                    fixAction: 'trimSpaces',
-                    samples: nonEmptyData.filter(val => 
-                        typeof val === 'string' && val !== val.trim()
-                    ).slice(0, 5).map(val => `"${val}"`)
-                });
-            }
-
-            // 5. Check for accented characters
-            const accentCount = nonEmptyData.filter(val => 
-                typeof val === 'string' && /[àáâãäåæçèéêëìíîïðñòóôõöøùúûüýÿ]/i.test(val)
-            ).length;
-            
-            if (accentCount > 0) {
-                report.issues.push({
-                    type: 'Accented Characters',
-                    severity: 'info',
-                    description: `${accentCount} values contain accented characters`,
-                    count: accentCount,
-                    suggestion: 'Consider removing accents for consistency',
-                    canFix: true,
-                    fixAction: 'removeAccents',
-                    samples: nonEmptyData.filter(val => 
-                        typeof val === 'string' && /[àáâãäåæçèéêëìíîïðñòóôõöøùúûüýÿ]/i.test(val)
-                    ).slice(0, 5)
-                });
-            }
-
-            // 6. Check for special characters (.?/)
-            const specialCharCount = nonEmptyData.filter(val => 
-                typeof val === 'string' && /[.?/]/.test(val)
-            ).length;
-            
-            if (specialCharCount > 0) {
-                report.issues.push({
-                    type: 'Special Characters',
-                    severity: 'info',
-                    description: `${specialCharCount} values contain special characters (.?/)`,
-                    count: specialCharCount,
-                    suggestion: 'Remove special characters if not needed',
-                    canFix: true,
-                    fixAction: 'removeSpecialCharacters',
-                    samples: nonEmptyData.filter(val => 
-                        typeof val === 'string' && /[.?/]/.test(val)
-                    ).slice(0, 5)
-                });
-            }
-
-            // 7. Check for numeric values stored as text (Value Specification)
-            if (typeAnalysis.type === 'Text') {
-                const numericAsTextCount = nonEmptyData.filter(val => 
-                    typeof val === 'string' && !isNaN(parseFloat(val.replace(/[,\s]/g, ''))) && val.trim() !== ''
-                ).length;
-                
-                if (numericAsTextCount > nonEmptyData.length * 0.5) {
-                    report.issues.push({
-                        type: 'Numbers Stored as Text',
-                        severity: 'warning',
-                        description: `${numericAsTextCount} numeric values stored as text`,
-                        count: numericAsTextCount,
-                        suggestion: 'Convert to numeric data type for proper calculations',
-                        canFix: true,
-                        fixAction: 'convertToNumeric',
-                        samples: nonEmptyData.filter(val => 
-                            typeof val === 'string' && !isNaN(parseFloat(val.replace(/[,\s]/g, ''))) && val.trim() !== ''
-                        ).slice(0, 5)
-                    });
-                }
-            }
-
-            // 8. Data Uniqueness Check for Categorical Variables
-            if (typeAnalysis.type === 'Text' && report.uniqueValues < report.nonEmptyValues) {
-                const duplicateCount = report.nonEmptyValues - report.uniqueValues;
-                const duplicatePercentage = (duplicateCount / report.nonEmptyValues) * 100;
-                
-                if (duplicatePercentage > 10) {
-                    const severity = duplicatePercentage > 50 ? 'warning' : 'info';
-                    
-                    // Get unique values in alphabetical order
-                    const uniqueValues = [...new Set(nonEmptyData.map(v => String(v)))].sort();
-                    const valueCounts = {};
-                    nonEmptyData.forEach(val => {
-                        const strVal = String(val);
-                        valueCounts[strVal] = (valueCounts[strVal] || 0) + 1;
-                    });
-
-                    report.issues.push({
-                        type: 'Duplicate Values',
-                        severity: severity,
-                        description: `${duplicateCount} duplicate values (${duplicatePercentage.toFixed(1)}%)`,
-                        count: duplicateCount,
-                        suggestion: 'Review for data entry errors or consolidation opportunities',
-                        canFix: false,
-                        uniqueValuesAlphabetical: uniqueValues.map(val => ({
-                            value: val,
-                            count: valueCounts[val]
-                        }))
-                    });
-                }
-            }
-
-            // 9. Similarity Check for Categorical Variables
-            if (typeAnalysis.type === 'Text' && report.uniqueValues > 2 && report.uniqueValues < 100) {
-                const uniqueValues = [...new Set(nonEmptyData.map(v => String(v)))];
-                const similarPairs = [];
-                
-                for (let i = 0; i < uniqueValues.length && i < 50; i++) {
-                    for (let j = i + 1; j < uniqueValues.length && j < 50; j++) {
-                        const similarity = calculateSimilarity(uniqueValues[i], uniqueValues[j]);
-                        if (similarity >= 0.75 && similarity < 1) {
-                            similarPairs.push({
-                                value1: uniqueValues[i],
-                                value2: uniqueValues[j],
-                                similarity: similarity
-                            });
-                        }
-                    }
-                }
-                
-                if (similarPairs.length > 0) {
-                    report.issues.push({
-                        type: 'Similar Values',
-                        severity: 'info',
-                        description: `${similarPairs.length} pairs of similar values detected`,
-                        count: similarPairs.length,
-                        suggestion: 'Check for spelling variations or data entry errors',
-                        canFix: false,
-                        similarPairs: similarPairs.slice(0, 10) // Limit to first 10 pairs
-                    });
-                }
-            }
-
-            return report;
+            const table = document.querySelector('#pivotResults table');
+            const ws = XLSX.utils.table_to_sheet(table);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Pivot Table');
+            XLSX.writeFile(wb, 'pivot_table_export.xlsx');
         }
 
-        function analyzeDataType(columnData) {
-            if (columnData.length === 0) {
-                return { type: 'Empty', confidence: 100, issues: [], convertible: false };
+        function exportPivotToCSV() {
+            if (!currentPivotData) {
+                showError('Please generate a pivot table first');
+                return;
             }
-
-            let numCount = 0;
-            let boolCount = 0;
-            let issues = [];
-            let inconsistentSamples = [];
-
-            columnData.forEach(val => {
-                const strVal = String(val).trim();
-                
-                if (!isNaN(strVal) && strVal !== '') {
-                    numCount++;
-                } else if (isNaN(strVal) && /^[\d,\s.]+$/.test(strVal)) {
-                    numCount++;
-                    issues.push('Numbers with formatting (commas, spaces)');
-                    inconsistentSamples.push(strVal);
-                }
-                
-                if (['true', 'false', 'yes', 'no', '1', '0'].includes(strVal.toLowerCase())) {
-                    boolCount++;
-                }
-
-                if (inconsistentSamples.length < 5 && 
-                    typeof val === 'string' && 
-                    (val !== val.trim() || /[àáâãäåæçèéêëìíîïðñòóôõöøùúûüýÿ]/i.test(val) || /[.?/]/.test(val))) {
-                    inconsistentSamples.push(val);
-                }
+            
+            const table = document.querySelector('#pivotResults table');
+            let csv = '';
+            
+            table.querySelectorAll('tr').forEach(row => {
+                const cells = Array.from(row.querySelectorAll('th, td'));
+                const rowData = cells.map(cell => {
+                    let text = cell.textContent.trim();
+                    if (text.includes(',')) text = `"${text}"`;
+                    return text;
+                });
+                csv += rowData.join(',') + '\n';
             });
-
-            const total = columnData.length;
-            const numPercent = (numCount / total) * 100;
-            const boolPercent = (boolCount / total) * 100;
-
-            let type, confidence, recommendedType, convertible = false;
-
-            if (numPercent >= 80) {
-                type = 'Numeric';
-                confidence = Math.round(numPercent);
-                if (numPercent < 100) {
-                    recommendedType = 'Number';
-                    convertible = true;
-                }
-            } else if (boolPercent >= 80) {
-                type = 'Boolean';
-                confidence = Math.round(boolPercent);
-                recommendedType = 'Boolean';
-                convertible = true;
-            } else {
-                type = 'Text';
-                confidence = Math.round(Math.max(100 - numPercent - boolPercent, 0));
-            }
-
-            return { 
-                type, 
-                confidence, 
-                issues: [...new Set(issues)], 
-                convertible, 
-                recommendedType,
-                inconsistentSamples: [...new Set(inconsistentSamples)]
-            };
+            
+            downloadFile(csv, 'pivot_table_export.csv', 'text/csv');
         }
 
-
-
-
-
-        function calculateSimilarity(str1, str2) {
-            const longer = str1.length > str2.length ? str1 : str2;
-            const shorter = str1.length > str2.length ? str2 : str1;
-            
-            if (longer.length === 0) return 1.0;
-            
-            const editDistance = levenshteinDistance(longer, shorter);
-            return (longer.length - editDistance) / longer.length;
-        }
-
-        function levenshteinDistance(str1, str2) {
-            const matrix = [];
-            
-            for (let i = 0; i <= str2.length; i++) {
-                matrix[i] = [i];
+        function copyPivotToClipboard() {
+            if (!currentPivotData) {
+                showError('Please generate a pivot table first');
+                return;
             }
             
-            for (let j = 0; j <= str1.length; j++) {
-                matrix[0][j] = j;
-            }
+            const table = document.querySelector('#pivotResults table');
+            let text = '';
             
-            for (let i = 1; i <= str2.length; i++) {
-                for (let j = 1; j <= str1.length; j++) {
-                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-                        matrix[i][j] = matrix[i - 1][j - 1];
-                    } else {
-                        matrix[i][j] = Math.min(
-                            matrix[i - 1][j - 1] + 1,
-                            matrix[i][j - 1] + 1,
-                            matrix[i - 1][j] + 1
-                        );
-                    }
-                }
-            }
-            
-            return matrix[str2.length][str1.length];
-        }
-
-        function displayQualityReport(report) {
-            let html = `
-                <div class="quality-report">
-                    <div class="overall-score">
-                        <div class="score-circle">${report.overallScore}</div>
-                        <h3>Overall Data Quality Score</h3>
-                        <p>Based on ${Object.keys(report.columnReports).length} columns and ${report.totalRows} rows</p>
-                        <div class="progress-indicator">
-                            <div class="progress-fill" style="width: ${report.overallScore}%"></div>
-                        </div>
-                    </div>
-
-                    <div class="quality-summary">
-                        <div class="quality-stat critical">
-                            <h5>Critical Issues</h5>
-                            <div class="value">${report.criticalIssues}</div>
-                        </div>
-                        <div class="quality-stat warning">
-                            <h5>Warning Issues</h5>
-                            <div class="value">${report.warningIssues}</div>
-                        </div>
-                        <div class="quality-stat info">
-                            <h5>Info Issues</h5>
-                            <div class="value">${report.infoIssues}</div>
-                        </div>
-                        <div class="quality-stat good">
-                            <h5>Clean Columns</h5>
-                            <div class="value">${Object.values(report.columnReports).filter(col => col.issues.length === 0).length}</div>
-                        </div>
-                    </div>
-
-                    <h3>📊 Column-by-Column Analysis</h3>
-            `;
-
-            const sortedColumns = Object.values(report.columnReports).sort((a, b) => {
-                const aScore = a.issues.filter(i => i.severity === 'critical').length * 3 + 
-                              a.issues.filter(i => i.severity === 'warning').length * 2 + 
-                              a.issues.filter(i => i.severity === 'info').length;
-                const bScore = b.issues.filter(i => i.severity === 'critical').length * 3 + 
-                              b.issues.filter(i => i.severity === 'warning').length * 2 + 
-                              b.issues.filter(i => i.severity === 'info').length;
-                return bScore - aScore;
+            table.querySelectorAll('tr').forEach(row => {
+                const cells = Array.from(row.querySelectorAll('th, td'));
+                const rowData = cells.map(cell => cell.textContent.trim());
+                text += rowData.join('\t') + '\n';
             });
-
-            sortedColumns.forEach(columnReport => {
-                const issueCount = columnReport.issues.length;
-                const criticalCount = columnReport.issues.filter(i => i.severity === 'critical').length;
-                const warningCount = columnReport.issues.filter(i => i.severity === 'warning').length;
-                
-                const statusColor = criticalCount > 0 ? '#dc3545' : warningCount > 0 ? '#ffc107' : '#28a745';
-                const statusText = criticalCount > 0 ? 'Critical Issues' : warningCount > 0 ? 'Needs Attention' : 'Good Quality';
-
-                html += `
-                    <div class="column-report">
-                        <div class="column-header">
-                            <div>
-                                <strong>${columnReport.name}</strong>
-                                <span style="opacity: 0.9; margin-left: 10px;">
-                                    ${columnReport.dataType} | ${columnReport.nonEmptyValues}/${columnReport.totalValues} values | 
-                                    ${columnReport.uniqueValues} unique
-                                </span>
-                            </div>
-                            <div style="background: ${statusColor}; padding: 4px 12px; border-radius: 15px; font-size: 0.85rem;">
-                                ${statusText} ${issueCount > 0 ? `(${issueCount})` : ''}
-                            </div>
-                        </div>
-                        <div class="column-content">
-                `;
-
-                if (columnReport.issues.length === 0) {
-                    html += `
-                        <div class="issue-card success">
-                            <div class="issue-title">
-                                ✅ No Issues Found
-                            </div>
-                            <div class="issue-description">
-                                This column has good data quality with no detected issues.
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    html += '<div class="issue-grid">';
-                    
-                    columnReport.issues.forEach(issue => {
-                        html += `
-                            <div class="issue-card ${issue.severity}">
-                                <div class="issue-title">
-                                    ${issue.severity === 'critical' ? '🔴' : issue.severity === 'warning' ? '🟡' : 'ℹ️'}
-                                    ${issue.type}
-                                </div>
-                                <div class="issue-description">${issue.description}</div>
-                                <div class="issue-details">
-                                    <strong>Suggestion:</strong> ${issue.suggestion}
-                                    ${issue.count ? `<br><strong>Affected:</strong> ${issue.count} values` : ''}
-                                </div>
-                                ${issue.samples && issue.samples.length > 0 ? `
-                                    <div class="samples-list">
-                                        <strong>Examples:</strong>
-                                        ${issue.samples.map(sample => `<div class="sample-item">${sample}</div>`).join('')}
-                                    </div>
-                                ` : ''}
-                                ${issue.uniqueValuesAlphabetical ? `
-                                    <div class="samples-list">
-                                        <strong>All Unique Values (Alphabetical):</strong>
-                                        ${issue.uniqueValuesAlphabetical.map(item => 
-                                            `<div class="sample-item">${item.value} (${item.count} times)</div>`
-                                        ).join('')}
-                                    </div>
-                                ` : ''}
-                                ${issue.similarPairs ? `
-                                    <div class="samples-list">
-                                        <strong>Similar Value Pairs:</strong>
-                                        ${issue.similarPairs.map(pair => 
-                                            `<div class="sample-item">"${pair.value1}" ↔ "${pair.value2}" (${(pair.similarity * 100).toFixed(1)}% similar)</div>`
-                                        ).join('')}
-                                    </div>
-                                ` : ''}
-                            </div>
-                        `;
-                    });
-                    
-                    html += '</div>';
-                }
-
-                html += '</div></div>';
-            });
-
-            html += '</div>';
             
-            document.getElementById('dataQualityReport').innerHTML = html;
+            navigator.clipboard.writeText(text).then(() => {
+                showMessage('Pivot table copied to clipboard!', 'success');
+            }).catch(() => {
+                showError('Failed to copy to clipboard');
+            });
         }
 
         // Utility functions
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
         function showError(message) {
             fileInfo.innerHTML = `<div class="error">❌ ${message}</div>`;
             fileInfo.style.display = 'block';
-            
-            setTimeout(() => {
-                fileInfo.style.display = 'none';
-            }, 5000);
         }
 
         function showMessage(message, type) {
-            const className = type === 'success' ? 'success' : (type === 'info' ? 'info' : 'error');
-            const icon = type === 'success' ? '✅' : (type === 'info' ? 'ℹ️' : '❌');
-            
-            fileInfo.innerHTML = `<div class="${className}">${icon} ${message}</div>`;
+            const className = type === 'success' ? 'success' : (type === 'info' ? 'success' : 'error'); // Use success style for info
+            fileInfo.innerHTML = `<div class="${className}">${type === 'success' ? '✅' : (type === 'info' ? 'ℹ️' : '❌')} ${message}</div>`;
             fileInfo.style.display = 'block';
             
-            setTimeout(() => {
-                fileInfo.style.display = 'none';
-            }, 3000);
+            if (type !== 'info') {
+                setTimeout(() => {
+                    fileInfo.style.display = 'none';
+                }, 3000);
+            }
         }
 
         function formatFileSize(bytes) {
@@ -1274,9 +1329,16 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.multi-select-container')) {
+                document.querySelectorAll('.multi-select-dropdown').forEach(d => d.style.display = 'none');
+            }
+        });
+
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Complete Data Quality Assessment Tool loaded successfully');
+            console.log('Multi-Column Pivot Tool loaded successfully');
             initializeFileUpload();
         });
     </script>
