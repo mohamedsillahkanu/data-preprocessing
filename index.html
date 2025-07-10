@@ -428,8 +428,13 @@
                 </div>
 
                 <div class="control-group">
-                    <label for="pivotValues">Value Column:</label>
-                    <select id="pivotValues"></select>
+                    <label>Value Columns (Multi-select):</label>
+                    <div class="multi-select-container">
+                        <div class="multi-select" id="valueColumns" onclick="toggleDropdown('valueColumns')">
+                            <span class="placeholder">Select columns for values...</span>
+                        </div>
+                        <div class="multi-select-dropdown" id="valueColumnsDropdown"></div>
+                    </div>
                 </div>
 
                 <div class="control-group">
@@ -486,6 +491,7 @@
         let currentPivotData = null;
         let selectedRowGroups = [];
         let selectedColGroups = [];
+        let selectedValueColumns = [];
 
         // File upload handling
         const uploadArea = document.getElementById('uploadArea');
@@ -671,23 +677,16 @@
             // Clear existing selections
             selectedRowGroups = [];
             selectedColGroups = [];
+            selectedValueColumns = [];
             
             // Update dropdowns
             updateMultiSelectDropdowns('rowGroups', headers);
             updateMultiSelectDropdowns('colGroups', headers);
-            
-            // Update value column dropdown
-            const pivotValues = document.getElementById('pivotValues');
-            pivotValues.innerHTML = '';
-            headers.forEach(header => {
-                const option = document.createElement('option');
-                option.value = header;
-                option.textContent = header;
-                pivotValues.appendChild(option);
-            });
+            updateMultiSelectDropdowns('valueColumns', headers);
 
             updateMultiSelectDisplay('rowGroups');
             updateMultiSelectDisplay('colGroups');
+            updateMultiSelectDisplay('valueColumns');
         }
 
         function updateMultiSelectDropdowns(containerId, options) {
@@ -718,7 +717,15 @@
 
         function updateDropdownSelections(containerId) {
             const dropdown = document.getElementById(containerId + 'Dropdown');
-            const selectedItems = containerId === 'rowGroups' ? selectedRowGroups : selectedColGroups;
+            let selectedItems;
+            
+            if (containerId === 'rowGroups') {
+                selectedItems = selectedRowGroups;
+            } else if (containerId === 'colGroups') {
+                selectedItems = selectedColGroups;
+            } else if (containerId === 'valueColumns') {
+                selectedItems = selectedValueColumns;
+            }
             
             dropdown.querySelectorAll('.multi-select-option').forEach(option => {
                 if (selectedItems.includes(option.textContent)) {
@@ -730,7 +737,15 @@
         }
 
         function toggleSelection(containerId, option) {
-            const selectedItems = containerId === 'rowGroups' ? selectedRowGroups : selectedColGroups;
+            let selectedItems;
+            if (containerId === 'rowGroups') {
+                selectedItems = selectedRowGroups;
+            } else if (containerId === 'colGroups') {
+                selectedItems = selectedColGroups;
+            } else if (containerId === 'valueColumns') {
+                selectedItems = selectedValueColumns;
+            }
+            
             const index = selectedItems.indexOf(option);
             
             if (index > -1) {
@@ -745,16 +760,26 @@
 
         function updateMultiSelectDisplay(containerId) {
             const container = document.getElementById(containerId);
-            const selectedItems = containerId === 'rowGroups' ? selectedRowGroups : selectedColGroups;
+            let selectedItems;
+            let placeholderText;
+            
+            if (containerId === 'rowGroups') {
+                selectedItems = selectedRowGroups;
+                placeholderText = 'Select columns for row grouping...';
+            } else if (containerId === 'colGroups') {
+                selectedItems = selectedColGroups;
+                placeholderText = 'Select columns for column grouping...';
+            } else if (containerId === 'valueColumns') {
+                selectedItems = selectedValueColumns;
+                placeholderText = 'Select columns for values...';
+            }
             
             container.innerHTML = '';
             
             if (selectedItems.length === 0) {
                 const placeholder = document.createElement('span');
                 placeholder.className = 'placeholder';
-                placeholder.textContent = containerId === 'rowGroups' ? 
-                    'Select columns for row grouping...' : 
-                    'Select columns for column grouping...';
+                placeholder.textContent = placeholderText;
                 placeholder.style.color = '#999';
                 container.appendChild(placeholder);
             } else {
@@ -771,7 +796,15 @@
         }
 
         function removeSelection(containerId, item) {
-            const selectedItems = containerId === 'rowGroups' ? selectedRowGroups : selectedColGroups;
+            let selectedItems;
+            if (containerId === 'rowGroups') {
+                selectedItems = selectedRowGroups;
+            } else if (containerId === 'colGroups') {
+                selectedItems = selectedColGroups;
+            } else if (containerId === 'valueColumns') {
+                selectedItems = selectedValueColumns;
+            }
+            
             const index = selectedItems.indexOf(item);
             if (index > -1) {
                 selectedItems.splice(index, 1);
@@ -782,14 +815,18 @@
 
         function generateMultiPivotTable() {
             const sheetName = document.getElementById('pivotSheet').value;
-            const valueCol = document.getElementById('pivotValues').value;
             const aggregation = document.getElementById('pivotAggregation').value;
             const showTotals = document.getElementById('showTotals').checked;
             const showGrandTotal = document.getElementById('showGrandTotal').checked;
             const showPercentages = document.getElementById('showPercentages').checked;
 
-            if (!sheetName || !workbookData[sheetName] || !valueCol) {
-                showError('Please select sheet and value column');
+            if (!sheetName || !workbookData[sheetName]) {
+                showError('Please select a sheet');
+                return;
+            }
+
+            if (selectedValueColumns.length === 0) {
+                showError('Please select at least one value column');
                 return;
             }
 
@@ -803,12 +840,12 @@
             const rows = data.slice(1);
 
             // Get column indices
-            const valueIndex = headers.indexOf(valueCol);
+            const valueIndices = selectedValueColumns.map(col => headers.indexOf(col));
             const rowGroupIndices = selectedRowGroups.map(col => headers.indexOf(col));
             const colGroupIndices = selectedColGroups.map(col => headers.indexOf(col));
 
-            if (valueIndex === -1) {
-                showError('Value column not found');
+            if (valueIndices.some(idx => idx === -1)) {
+                showError('One or more value columns not found');
                 return;
             }
 
@@ -816,17 +853,17 @@
             const validRows = rows.filter(row => {
                 return rowGroupIndices.every(idx => row[idx] !== undefined) &&
                        colGroupIndices.every(idx => row[idx] !== undefined) &&
-                       row[valueIndex] !== undefined;
+                       valueIndices.some(idx => row[idx] !== undefined);
             });
 
-            // Create pivot table
-            const pivotTable = createPivotTable(
-                validRows, rowGroupIndices, colGroupIndices, valueIndex, 
+            // Create pivot table with multiple values
+            const pivotTable = createMultiValuePivotTable(
+                validRows, rowGroupIndices, colGroupIndices, valueIndices, 
                 aggregation, showTotals, showGrandTotal, showPercentages
             );
 
             currentPivotData = pivotTable;
-            displayPivotTable(pivotTable, selectedRowGroups, selectedColGroups, valueCol, aggregation);
+            displayMultiValuePivotTable(pivotTable, selectedRowGroups, selectedColGroups, selectedValueColumns, aggregation);
             showPivotStats(pivotTable, validRows.length);
             
             document.getElementById('exportControls').style.display = 'flex';
@@ -834,39 +871,47 @@
 
 
 
-        function createPivotTable(rows, rowGroupIndices, colGroupIndices, valueIndex, aggregation, showTotals, showGrandTotal, showPercentages) {
+        function createMultiValuePivotTable(rows, rowGroupIndices, colGroupIndices, valueIndices, aggregation, showTotals, showGrandTotal, showPercentages) {
             // Group data by row and column combinations
             const grouped = {};
             const rowTotals = {};
             const colTotals = {};
-            let grandTotal = 0;
-            let grandCount = 0;
+            const grandTotals = {};
+            
+            // Initialize grand totals for each value column
+            valueIndices.forEach((_, idx) => {
+                grandTotals[idx] = 0;
+            });
 
             rows.forEach(row => {
                 // Create row key
                 const rowKey = rowGroupIndices.map(idx => row[idx] || '').join('|');
                 
-                // Create column key
-                const colKey = colGroupIndices.length > 0 ? 
-                    colGroupIndices.map(idx => row[idx] || '').join('|') : 'Value';
+                // Create column key (combine regular columns with value column names)
+                const baseColKey = colGroupIndices.length > 0 ? 
+                    colGroupIndices.map(idx => row[idx] || '').join('|') : '';
 
                 // Initialize if needed
                 if (!grouped[rowKey]) grouped[rowKey] = {};
-                if (!grouped[rowKey][colKey]) grouped[rowKey][colKey] = [];
-
-                const value = parseFloat(row[valueIndex]);
-                if (!isNaN(value)) {
-                    grouped[rowKey][colKey].push(value);
+                if (!rowTotals[rowKey]) rowTotals[rowKey] = {};
+                
+                valueIndices.forEach((valueIdx, valuePosition) => {
+                    const colKey = colGroupIndices.length > 0 ? 
+                        `${baseColKey}|${selectedValueColumns[valuePosition]}` : 
+                        selectedValueColumns[valuePosition];
                     
-                    // Update totals
-                    if (!rowTotals[rowKey]) rowTotals[rowKey] = [];
+                    if (!grouped[rowKey][colKey]) grouped[rowKey][colKey] = [];
                     if (!colTotals[colKey]) colTotals[colKey] = [];
-                    
-                    rowTotals[rowKey].push(value);
-                    colTotals[colKey].push(value);
-                    grandTotal += value;
-                    grandCount++;
-                }
+                    if (!rowTotals[rowKey][valuePosition]) rowTotals[rowKey][valuePosition] = [];
+
+                    const value = parseFloat(row[valueIdx]);
+                    if (!isNaN(value)) {
+                        grouped[rowKey][colKey].push(value);
+                        rowTotals[rowKey][valuePosition].push(value);
+                        colTotals[colKey].push(value);
+                        grandTotals[valuePosition] += value;
+                    }
+                });
             });
 
             // Calculate aggregated values
@@ -885,7 +930,10 @@
             
             if (showTotals) {
                 Object.keys(rowTotals).forEach(rowKey => {
-                    calculatedRowTotals[rowKey] = calculateAggregation(rowTotals[rowKey], aggregation);
+                    calculatedRowTotals[rowKey] = {};
+                    Object.keys(rowTotals[rowKey]).forEach(valuePosition => {
+                        calculatedRowTotals[rowKey][valuePosition] = calculateAggregation(rowTotals[rowKey][valuePosition], aggregation);
+                    });
                 });
                 
                 Object.keys(colTotals).forEach(colKey => {
@@ -893,21 +941,32 @@
                 });
             }
 
-            const calculatedGrandTotal = showGrandTotal ? 
-                (aggregation === 'count' ? grandCount : calculateAggregation([grandTotal], aggregation === 'sum' ? 'sum' : aggregation)) : null;
+            // Calculate grand totals
+            const calculatedGrandTotals = {};
+            if (showGrandTotal) {
+                valueIndices.forEach((_, idx) => {
+                    calculatedGrandTotals[idx] = aggregation === 'count' ? 
+                        Object.values(grouped).reduce((sum, row) => {
+                            return sum + Object.values(row).reduce((rowSum, values) => rowSum + values.length, 0);
+                        }, 0) : 
+                        calculateAggregation([grandTotals[idx]], aggregation === 'sum' ? 'sum' : aggregation);
+                });
+            }
+
+            // Generate all possible column keys
+            const allColKeys = [...new Set(Object.values(pivotData).flatMap(obj => Object.keys(obj)))].sort();
 
             return {
                 data: pivotData,
                 rowKeys: Object.keys(pivotData).sort(),
-                colKeys: colGroupIndices.length > 0 ? 
-                    [...new Set(Object.values(pivotData).flatMap(obj => Object.keys(obj)))].sort() : 
-                    ['Value'],
+                colKeys: allColKeys,
                 rowTotals: calculatedRowTotals,
                 colTotals: calculatedColTotals,
-                grandTotal: calculatedGrandTotal,
+                grandTotals: calculatedGrandTotals,
                 showTotals,
                 showGrandTotal,
-                showPercentages
+                showPercentages,
+                valueColumns: selectedValueColumns
             };
         }
 
@@ -939,13 +998,13 @@
             }
         }
 
-        function displayPivotTable(pivotTable, rowGroups, colGroups, valueCol, aggregation) {
-            const { data, rowKeys, colKeys, rowTotals, colTotals, grandTotal, showTotals, showGrandTotal, showPercentages } = pivotTable;
+        function displayMultiValuePivotTable(pivotTable, rowGroups, colGroups, valueColumns, aggregation) {
+            const { data, rowKeys, colKeys, colTotals, grandTotals, showTotals, showGrandTotal, showPercentages } = pivotTable;
             
             let html = '<div class="data-table"><table>';
             
             // Header rows
-            if (colGroups.length > 0) {
+            if (colGroups.length > 0 || valueColumns.length > 1) {
                 // Multi-level column headers
                 html += '<thead>';
                 
@@ -966,18 +1025,20 @@
                 });
                 
                 colKeys.forEach(() => {
-                    html += `<th class="pivot-subheader">${aggregation.charAt(0).toUpperCase() + aggregation.slice(1)} of ${valueCol}</th>`;
+                    html += `<th class="pivot-subheader">${aggregation.charAt(0).toUpperCase() + aggregation.slice(1)}</th>`;
                 });
                 
                 html += '</tr>';
                 html += '</thead>';
             } else {
-                // Simple header for row-only pivot
+                // Simple header for single value column
                 html += '<thead><tr>';
                 rowGroups.forEach(group => {
                     html += `<th class="pivot-header">${group}</th>`;
                 });
-                html += `<th class="pivot-header">${aggregation.charAt(0).toUpperCase() + aggregation.slice(1)} of ${valueCol}</th>`;
+                valueColumns.forEach(valueCol => {
+                    html += `<th class="pivot-header">${aggregation.charAt(0).toUpperCase() + aggregation.slice(1)} of ${valueCol}</th>`;
+                });
                 html += '</tr></thead>';
             }
             
@@ -999,9 +1060,14 @@
                     
                     let displayValue = formatNumber(cellValue);
                     
-                    if (showPercentages && grandTotal && grandTotal !== 0) {
-                        const percentage = (cellValue / grandTotal * 100).toFixed(1);
-                        displayValue = `${displayValue} (${percentage}%)`;
+                    if (showPercentages && grandTotals) {
+                        // Find which value column this represents for percentage calculation
+                        const valueColIndex = valueColumns.findIndex(col => colKey.includes(col));
+                        const grandTotal = grandTotals[valueColIndex] || 0;
+                        if (grandTotal !== 0) {
+                            const percentage = (cellValue / grandTotal * 100).toFixed(1);
+                            displayValue = `${displayValue} (${percentage}%)`;
+                        }
                     }
                     
                     html += `<td class="pivot-value">${displayValue}</td>`;
@@ -1011,7 +1077,7 @@
             });
             
             // Column totals row
-            if (showTotals && colGroups.length > 0) {
+            if (showTotals && (colGroups.length > 0 || valueColumns.length > 1)) {
                 html += '<tr>';
                 
                 // Total label
@@ -1024,9 +1090,13 @@
                 colKeys.forEach(colKey => {
                     const total = colTotals[colKey] || 0;
                     let totalDisplay = formatNumber(total);
-                    if (showPercentages && grandTotal && grandTotal !== 0) {
-                        const percentage = (total / grandTotal * 100).toFixed(1);
-                        totalDisplay = `${totalDisplay} (${percentage}%)`;
+                    if (showPercentages && grandTotals) {
+                        const valueColIndex = valueColumns.findIndex(col => colKey.includes(col));
+                        const grandTotal = grandTotals[valueColIndex] || 0;
+                        if (grandTotal !== 0) {
+                            const percentage = (total / grandTotal * 100).toFixed(1);
+                            totalDisplay = `${totalDisplay} (${percentage}%)`;
+                        }
                     }
                     html += `<td class="pivot-col-total">${totalDisplay}</td>`;
                 });
@@ -1035,7 +1105,7 @@
             }
             
             // Grand total row at the bottom
-            if (showGrandTotal && grandTotal !== null) {
+            if (showGrandTotal && grandTotals) {
                 html += '<tr>';
                 
                 // Grand total label
@@ -1045,12 +1115,23 @@
                 html += '<td class="pivot-grand-total"><strong>Grand Total</strong></td>';
                 
                 // Grand total spanning across data columns
-                const totalCols = colGroups.length > 0 ? colKeys.length : 1;
-                let grandDisplay = formatNumber(grandTotal);
-                if (showPercentages) {
-                    grandDisplay = `${grandDisplay} (100.0%)`;
+                if (valueColumns.length === 1) {
+                    let grandDisplay = formatNumber(grandTotals[0]);
+                    if (showPercentages) {
+                        grandDisplay = `${grandDisplay} (100.0%)`;
+                    }
+                    html += `<td colspan="${colKeys.length}" class="pivot-grand-total" style="text-align: right;"><strong>${grandDisplay}</strong></td>`;
+                } else {
+                    // Multiple value columns - show grand total for each
+                    colKeys.forEach(colKey => {
+                        const valueColIndex = valueColumns.findIndex(col => colKey.includes(col));
+                        let grandDisplay = formatNumber(grandTotals[valueColIndex] || 0);
+                        if (showPercentages) {
+                            grandDisplay = `${grandDisplay} (100.0%)`;
+                        }
+                        html += `<td class="pivot-grand-total" style="text-align: right;"><strong>${grandDisplay}</strong></td>`;
+                    });
                 }
-                html += `<td colspan="${totalCols}" class="pivot-grand-total" style="text-align: right;"><strong>${grandDisplay}</strong></td>`;
                 
                 html += '</tr>';
             }
