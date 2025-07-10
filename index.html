@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enhanced Multi-Column Pivot Table Tool</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
     <style>
@@ -456,9 +457,8 @@
                     </div>
                 </div>
 
-                <div class="control-group" style="display: flex; align-items: end; gap: 10px;">
-                    <button class="btn" onclick="generateMultiPivotTable()">🔄 Generate Multi-Pivot</button>
-                    <button class="btn btn-secondary" onclick="generateSimplePivotTable()">📊 Simple Pivot</button>
+                <div class="control-group" style="display: flex; align-items: end;">
+                    <button class="btn" onclick="generateMultiPivotTable()">🔄 Generate Pivot Table</button>
                 </div>
             </div>
 
@@ -469,6 +469,7 @@
                 <button class="btn btn-secondary" onclick="exportPivotToExcel()">📊 Export to Excel</button>
                 <button class="btn btn-secondary" onclick="exportPivotToCSV()">📄 Export to CSV</button>
                 <button class="btn btn-secondary" onclick="copyPivotToClipboard()">📋 Copy to Clipboard</button>
+                <button class="btn btn-secondary" onclick="exportPivotToPNG()">🖼️ Save as PNG</button>
             </div>
         </div>
     </div>
@@ -813,7 +814,7 @@
             });
 
             // Create pivot table
-            const pivotTable = createMultiColumnPivotTable(
+            const pivotTable = createPivotTable(
                 validRows, rowGroupIndices, colGroupIndices, valueIndex, 
                 aggregation, showTotals, showGrandTotal, showPercentages
             );
@@ -825,102 +826,9 @@
             document.getElementById('exportControls').style.display = 'flex';
         }
 
-        function generateSimplePivotTable() {
-            const sheetName = document.getElementById('pivotSheet').value;
-            const valueCol = document.getElementById('pivotValues').value;
-            const aggregation = document.getElementById('pivotAggregation').value;
-            const showPercentages = document.getElementById('showPercentages').checked;
 
-            if (!sheetName || !workbookData[sheetName] || !valueCol) {
-                showError('Please select sheet and value column');
-                return;
-            }
 
-            if (selectedRowGroups.length === 0) {
-                showError('Please select at least one row group for simple pivot');
-                return;
-            }
-
-            const data = workbookData[sheetName];
-            const headers = data[0];
-            const rows = data.slice(1);
-
-            const valueIndex = headers.indexOf(valueCol);
-            const rowIndex = headers.indexOf(selectedRowGroups[0]);
-
-            if (valueIndex === -1 || rowIndex === -1) {
-                showError('Selected columns not found');
-                return;
-            }
-
-            // Group data
-            const grouped = _.groupBy(rows.filter(row => 
-                row[rowIndex] !== undefined && row[valueIndex] !== undefined
-            ), row => row[rowIndex]);
-
-            // Calculate aggregations and total
-            let grandTotal = 0;
-            const pivotData = Object.keys(grouped).map(key => {
-                const group = grouped[key];
-                const values = group.map(row => parseFloat(row[valueIndex]) || 0);
-                
-                let aggregatedValue = calculateAggregation(values, aggregation);
-                if (aggregation === 'sum') grandTotal += aggregatedValue;
-
-                return {
-                    group: key,
-                    value: aggregatedValue,
-                    count: values.length
-                };
-            });
-
-            // Generate simple table
-            let html = `
-                <div class="data-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="pivot-header">${selectedRowGroups[0]}</th>
-                                <th class="pivot-header">${aggregation.charAt(0).toUpperCase() + aggregation.slice(1)} of ${valueCol}</th>
-                                <th class="pivot-header">Count</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            pivotData.forEach(row => {
-                let valueDisplay = formatNumber(row.value);
-                if (showPercentages && grandTotal > 0 && aggregation === 'sum') {
-                    const percentage = (row.value / grandTotal * 100).toFixed(1);
-                    valueDisplay = `${valueDisplay} (${percentage}%)`;
-                }
-
-                html += `
-                    <tr>
-                        <td class="pivot-row-header">${row.group}</td>
-                        <td class="pivot-value">${valueDisplay}</td>
-                        <td class="pivot-value">${row.count}</td>
-                    </tr>
-                `;
-            });
-
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
-
-            document.getElementById('pivotResults').innerHTML = html;
-            document.getElementById('exportControls').style.display = 'flex';
-            
-            showPivotStats({
-                rowKeys: pivotData.map(p => p.group),
-                colKeys: ['Value'],
-                data: {}
-            }, pivotData.reduce((sum, p) => sum + p.count, 0));
-        }
-
-        function createMultiColumnPivotTable(rows, rowGroupIndices, colGroupIndices, valueIndex, aggregation, showTotals, showGrandTotal, showPercentages) {
+        function createPivotTable(rows, rowGroupIndices, colGroupIndices, valueIndex, aggregation, showTotals, showGrandTotal, showPercentages) {
             // Group data by row and column combinations
             const grouped = {};
             const rowTotals = {};
@@ -1181,6 +1089,53 @@
             return value % 1 === 0 ? value.toLocaleString() : value.toFixed(2);
         }
 
+        function exportPivotToPNG() {
+            if (!currentPivotData) {
+                showError('Please generate a pivot table first');
+                return;
+            }
+
+            const pivotElement = document.querySelector('#pivotResults .data-table');
+            
+            if (!pivotElement) {
+                showError('No pivot table found to export');
+                return;
+            }
+
+            // Show loading message
+            showMessage('Generating PNG image...', 'info');
+
+            // Use html2canvas to capture the pivot table
+            html2canvas(pivotElement, {
+                backgroundColor: '#ffffff',
+                scale: 2, // Higher quality
+                useCORS: true,
+                allowTaint: true,
+                scrollX: 0,
+                scrollY: 0,
+                width: pivotElement.scrollWidth,
+                height: pivotElement.scrollHeight,
+                onrendered: function(canvas) {
+                    // This is for older versions of html2canvas
+                }
+            }).then(function(canvas) {
+                // Create download link
+                const link = document.createElement('a');
+                link.download = 'pivot_table_export.png';
+                link.href = canvas.toDataURL('image/png');
+                
+                // Trigger download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showMessage('PNG exported successfully!', 'success');
+            }).catch(function(error) {
+                console.error('Error generating PNG:', error);
+                showError('Failed to generate PNG. Please try again.');
+            });
+        }
+
         // Export functions
         function exportPivotToExcel() {
             if (!currentPivotData) {
@@ -1256,13 +1211,15 @@
         }
 
         function showMessage(message, type) {
-            const className = type === 'success' ? 'success' : 'error';
-            fileInfo.innerHTML = `<div class="${className}">${type === 'success' ? '✅' : '❌'} ${message}</div>`;
+            const className = type === 'success' ? 'success' : (type === 'info' ? 'success' : 'error'); // Use success style for info
+            fileInfo.innerHTML = `<div class="${className}">${type === 'success' ? '✅' : (type === 'info' ? 'ℹ️' : '❌')} ${message}</div>`;
             fileInfo.style.display = 'block';
             
-            setTimeout(() => {
-                fileInfo.style.display = 'none';
-            }, 3000);
+            if (type !== 'info') {
+                setTimeout(() => {
+                    fileInfo.style.display = 'none';
+                }, 3000);
+            }
         }
 
         function formatFileSize(bytes) {
